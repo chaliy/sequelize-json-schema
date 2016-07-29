@@ -70,19 +70,21 @@ let property = attribute => {
 let modelProperties = (model, options) => {
 
   options = options || {};
-  let privateProperties = options.private || [];
-
+  let exclude = options.exclude || options.private || [];
+  let attributes = options.attributes ||  Object.keys(model.rawAttributes);
 
   let properties = {};
-  for(let attributeName in model.rawAttributes){
-    
-    if (privateProperties.indexOf(attributeName) >= 0){
+  for(let attributeName of attributes){
+
+    if (exclude.indexOf(attributeName) >= 0){
       continue;
     }
 
     let attribute = model.rawAttributes[attributeName];
 
-    properties[attributeName] = property(attribute);
+    if (attribute) {
+      properties[attributeName] = property(attribute);
+    }
   }
   return properties;
 }
@@ -91,7 +93,7 @@ let modelProperties = (model, options) => {
  * Generates JSON Schema by specified Sequelize Model
  * @constructor
  * @param {object} model - The Sequelize Model
- * @param {objecct} options - Optional optsions
+ * @param {objecct} options - Optional options
  */
 module.exports = (model, options) => {
   return {

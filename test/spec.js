@@ -33,8 +33,6 @@ describe('sequelize-json-schema', () => {
 
       let def = definition(Simple);
 
-      console.log(def);
-
       expect(def.properties.title).to.exist;
       expect(def.properties.title.type).to.be.equal('string');
       expect(def.properties.description).to.exist;
@@ -52,7 +50,7 @@ describe('sequelize-json-schema', () => {
       });
 
       let def = definition(Simple, {
-        private: ['password']
+        exclude: ['password']
       });
 
       expect(def.properties.title).to.exist;
@@ -60,6 +58,29 @@ describe('sequelize-json-schema', () => {
 
     });
 
+    it('should build definition for simple model only for defined columns', () => {
+
+      let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        password: {
+          type: Sequelize.STRING
+        },
+        secret: Sequelize.INTEGER
+      });
+
+      let def = definition(Simple, {
+        attributes: ['title', 'password'],
+        exclude: ['password']
+      });
+
+      expect(def.properties.title).to.exist;
+      expect(def.properties.password).to.not.exist;
+      expect(def.properties.secret).to.not.exist;
+
+    });
+
   });
+
+
 
 });
