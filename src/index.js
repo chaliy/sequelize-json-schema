@@ -65,29 +65,7 @@ let property = attribute => {
   console.log(`Unable to convert ${type.key || type.toSql()} to a schema property`);
 
   return { type: 'any' };
-}
-
-let modelProperties = (model, options) => {
-
-  options = options || {};
-  let exclude = options.exclude || options.private || [];
-  let attributes = options.attributes ||  Object.keys(model.rawAttributes);
-
-  let properties = {};
-  for(let attributeName of attributes){
-
-    if (exclude.indexOf(attributeName) >= 0){
-      continue;
-    }
-
-    let attribute = model.rawAttributes[attributeName];
-
-    if (attribute) {
-      properties[attributeName] = property(attribute);
-    }
-  }
-  return properties;
-}
+};
 
 /**
  * Generates JSON Schema by specified Sequelize Model
@@ -96,9 +74,33 @@ let modelProperties = (model, options) => {
  * @param {objecct} options - Optional options
  */
 module.exports = (model, options) => {
-  return {
+
+  options = options || {};
+
+  const schema = {
     type: 'object',
-    properties: modelProperties(model, options)
+    properties: {},
+    required: []
   };
 
+  let exclude = options.exclude || options.private || [];
+  let attributes = options.attributes || Object.keys(model.rawAttributes);
+
+  for(let attributeName of attributes) {
+
+    if (exclude.indexOf(attributeName) >= 0) {
+      continue;
+    }
+
+    let attribute = model.rawAttributes[attributeName];
+
+    if (attribute) {
+      schema.properties[attributeName] = property(attribute);
+      if (false === attribute.allowNull) {
+        schema.required.push(attributeName);
+      }
+    }
+  }
+
+  return schema;
 };

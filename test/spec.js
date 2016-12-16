@@ -79,6 +79,25 @@ describe('sequelize-json-schema', () => {
 
     });
 
+    it('should add required for non-null columns', () => {
+      let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        password: {
+          allowNull: false,
+          type: Sequelize.STRING
+        },
+        secret: Sequelize.INTEGER
+      });
+
+      let def = definition(Simple);
+
+      expect(def.properties.title).to.exist;
+      expect(def.properties.password).to.exist;
+      expect(def.required).to.be.an('array');
+      expect(def.required).to.contain('password');
+      expect(def.properties.secret).to.exist;
+    });
+
   });
 
 
