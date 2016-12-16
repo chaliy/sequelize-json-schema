@@ -10,6 +10,7 @@ let enumProperty = attribute => {
 
 let property = attribute => {
   let type = attribute.type;
+
   if (type instanceof Sequelize.ENUM) return enumProperty(attribute);
   if (type instanceof Sequelize.BOOLEAN) return { type: 'boolean' };
   if (type instanceof Sequelize.INTEGER) return { type: 'integer', format: 'int32' };
@@ -41,7 +42,18 @@ let property = attribute => {
     || type instanceof Sequelize.DATE
     || type instanceof Sequelize.DATEONLY
     || type instanceof Sequelize.TIME) {
-    return { type: 'string' };
+
+    const schema = {
+      type: 'string'
+    };
+
+    if (type.options && type.options.length) {
+      schema.maxLength = type.options.length;
+    } else {
+      schema.maxLength = type._length;
+    }
+
+    return schema;
   }
 
   if (type instanceof Sequelize.JSON
