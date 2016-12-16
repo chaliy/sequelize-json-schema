@@ -94,7 +94,12 @@ describe('sequelize-json-schema', () => {
       expect(def.properties.title).to.exist;
       expect(def.properties.password).to.exist;
       expect(def.required).to.be.an('array');
+      expect(def.required).to.contain('id');
+      expect(def.required).to.contain('createdAt');
+      expect(def.required).to.contain('updatedAt');
+      expect(def.required).to.not.contain('title');
       expect(def.required).to.contain('password');
+      expect(def.required).to.not.contain('secret');
       expect(def.properties.secret).to.exist;
     });
 
