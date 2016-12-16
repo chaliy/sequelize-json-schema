@@ -103,6 +103,25 @@ describe('sequelize-json-schema', () => {
       expect(def.properties.secret).to.exist;
     });
 
+    it('should specify string length', () => {
+      let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        password: {
+          type: Sequelize.STRING(100)
+        },
+        secret: Sequelize.STRING(40)
+      });
+
+      let def = definition(Simple);
+
+      expect(def.properties.title).to.exist;
+      expect(def.properties.title.maxLength).to.equal(255);
+      expect(def.properties.password).to.exist;
+      expect(def.properties.password.maxLength).to.equal(100);
+      expect(def.properties.secret).to.exist;
+      expect(def.properties.secret.maxLength).to.equal(40);
+    });
+
   });
 
 
