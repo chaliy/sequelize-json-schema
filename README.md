@@ -1,5 +1,7 @@
 # sequelize-json-schema
 
+[![CircleCI](https://circleci.com/gh/chaliy/sequelize-json-schema.svg?style=svg)](https://circleci.com/gh/chaliy/sequelize-json-schema)
+
 Use your Sequelize models in JSON Schemas or Swagger
 
 Main use case for this code is to generate models for hand crafted swagger.json.
