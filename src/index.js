@@ -43,15 +43,21 @@ let property = attribute => {
     || type instanceof Sequelize.DATEONLY
     || type instanceof Sequelize.TIME) {
 
-    const schema = {
-      type: 'string'
-    };
+    const schema = {type: 'string'};
 
-    if (type.options && type.options.length) {
-      schema.maxLength = type.options.length;
-    } else {
-      schema.maxLength = type._length;
+    var maxLength = (type.options && type.options.length) || type._length;
+
+    if (type instanceof Sequelize.TEXT) {
+      // Handle 'tiny', 'medium', and 'long' allowed for MySQL
+      switch (maxLength) {
+        case 'tiny': maxLength = 255; break;
+        case 'medium': maxLength = 16777215; break;
+        case 'long': maxLength = 4294967295; break;
+      }
+
     }
+
+    if (maxLength) schema.maxLength = maxLength;
 
     return schema;
   }
