@@ -1,10 +1,22 @@
 # sequelize-json-schema
 
+[![NPM Version](https://img.shields.io/npm/v/sequelize-json-schema.svg)](https://npmjs.org/package/sequelize-json-schema)
 [![CircleCI](https://circleci.com/gh/chaliy/sequelize-json-schema.svg?style=svg)](https://circleci.com/gh/chaliy/sequelize-json-schema)
 
 Use your Sequelize models in JSON Schemas or Swagger
 
 Main use case for this code is to generate models for hand crafted swagger.json.
+
+## Installation
+
+This is a [Node.js](https://nodejs.org/en/) module available through the
+[npm registry](https://www.npmjs.com/). Installation is done using the
+[`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
+
+```bash
+$ npm install sequelize-json-schema
+```
+
 
 ## Example
 
