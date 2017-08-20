@@ -71,6 +71,12 @@ let property = attribute => {
     return type.returnType ? property({ type: type.returnType }) : { type: 'string' };
   }
 
+
+  //Array type doesn't work so well yes, it comes back as string rather than object
+  // and has no indeication of internal type, so we will just assume string
+  if (type === 'ARRAY') {
+    return { type: 'array', items: { type: 'string' } };
+  }
   // Need suport for the following
   // HSTORE
   // NOW
