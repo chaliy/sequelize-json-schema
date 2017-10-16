@@ -116,7 +116,7 @@ module.exports = (model, options) => {
 
     if (attribute) {
       schema.properties[attributeName] = property(attribute, options);
-      if (false === attribute.allowNull || options.allowNull) {
+      if (false === attribute.allowNull || options.alwaysRequired) {
         schema.required.push(attributeName);
       }
     }
