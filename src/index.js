@@ -8,31 +8,33 @@ let enumProperty = attribute => {
     }
 }
 
-let property = attribute => {
+let property = (attribute, options) => {
   let type = attribute.type;
 
+  let addNull = attribute.allowNull && options.allowNull
+
   if (type instanceof Sequelize.ENUM) return enumProperty(attribute);
-  if (type instanceof Sequelize.BOOLEAN) return { type: 'boolean' };
-  if (type instanceof Sequelize.INTEGER) return { type: 'integer', format: 'int32' };
-  if (type instanceof Sequelize.BIGINT) return { type: 'integer', format: 'int64' };
+  if (type instanceof Sequelize.BOOLEAN) return { type: addNull ? ['boolean', 'null'] : 'boolean' };
+  if (type instanceof Sequelize.INTEGER) return { type: addNull ? ['integer', 'null'] : 'integer', format: 'int32' };
+  if (type instanceof Sequelize.BIGINT) return { type: addNull ? ['integer', 'null'] : 'integer', format: 'int64' };
 
   if (type instanceof Sequelize.FLOAT
     || type instanceof Sequelize.REAL) {
-    return { type: 'number', format: 'float' };
+    return { type: addNull ? ['number', 'null'] : 'number', format: 'float' };
   }
 
-  if (type instanceof Sequelize.DOUBLE) { return { type: 'number', format: 'double' }; }
+  if (type instanceof Sequelize.DOUBLE) { return { type: addNull ? ['number', 'null'] : 'number', format: 'double' }; }
 
-  if (type instanceof Sequelize.DECIMAL) { return { type: 'number' }; }
+  if (type instanceof Sequelize.DECIMAL) { return { type: addNull ? ['number', 'null'] : 'number' }; }
 
-  if (type instanceof Sequelize.DATEONLY) { return { type: 'string', format: 'date' }; }
-  if (type instanceof Sequelize.DATE) { return { type: 'string', format: 'date-time' }; }
-  if (type instanceof Sequelize.TIME) { return { type: 'string' }; }
+  if (type instanceof Sequelize.DATEONLY) { return { type: addNull ? ['string', 'null'] : 'string', format: 'date' }; }
+  if (type instanceof Sequelize.DATE) { return { type: addNull ? ['string', 'null'] : 'string', format: 'date-time' }; }
+  if (type instanceof Sequelize.TIME) { return { type: addNull ? ['string', 'null'] : 'string'}; }
 
   if (type instanceof Sequelize.UUID
     || type instanceof Sequelize.UUIDV1
     || type instanceof Sequelize.UUIDV4) {
-    return { type: 'string', format: 'uuid' };
+    return { type: addNull ? ['string', 'null'] : 'string', format: 'uuid' };
   }
 
   if (type instanceof Sequelize.CHAR
@@ -43,7 +45,7 @@ let property = attribute => {
     || type instanceof Sequelize.DATEONLY
     || type instanceof Sequelize.TIME) {
 
-    const schema = {type: 'string'};
+    const schema = {type: addNull ? ['string', 'null'] : 'string'};
 
     var maxLength = (type.options && type.options.length) || type._length;
 
@@ -68,7 +70,7 @@ let property = attribute => {
   }
 
   if (type instanceof Sequelize.VIRTUAL) {
-    return type.returnType ? property({ type: type.returnType }) : { type: 'string' };
+    return type.returnType ? property({ type: type.returnType, allowNull: type.allowNull }, options) : { type: addNull ? ['string', 'null'] : 'string'};
   }
 
   // Need suport for the following
@@ -113,8 +115,8 @@ module.exports = (model, options) => {
     let attribute = model.rawAttributes[attributeName];
 
     if (attribute) {
-      schema.properties[attributeName] = property(attribute);
-      if (false === attribute.allowNull) {
+      schema.properties[attributeName] = property(attribute, options);
+      if (false === attribute.allowNull || options.alwaysRequired) {
         schema.required.push(attributeName);
       }
     }
