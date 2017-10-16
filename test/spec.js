@@ -103,6 +103,30 @@ describe('sequelize-json-schema', () => {
       expect(def.properties.secret).to.exist;
     });
 
+    it('should add required for all if option allowNull turned on', () => {
+       let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        password: {
+          allowNull: true,
+          type: Sequelize.STRING
+        }
+      });
+
+      let def = definition(Simple, {
+        allowNull: true
+      });
+
+      expect(def.properties.title).to.exist;
+      expect(def.required).to.be.an('array');
+      expect(def.required).to.contain('id');
+      expect(def.required).to.contain('createdAt');
+      expect(def.required).to.contain('updatedAt');
+      expect(def.required).to.contain('title');
+      expect(def.required).to.contain('password');
+      expect(def.properties.password.type).to.eql(['string', 'null'])
+      expect(def.properties.title.type).to.eql('string')
+    })
+
     it('should specify string length', () => {
       let Simple = sequelize.define('simple', {
         title: Sequelize.STRING,
