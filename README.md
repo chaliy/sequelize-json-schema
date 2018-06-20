@@ -21,12 +21,14 @@ $ npm install sequelize-json-schema
 ## Example
 
 ```
+const sequelize_json = require('sequelize-json-schema');
+
 let Simple = sequelize.define('simple', {
   title: Sequelize.STRING,
   description: Sequelize.TEXT
 });
 
-let def = definition(Simple);
+let def = sequelize_json(Simple);
 
 console.log(def);
 ```
