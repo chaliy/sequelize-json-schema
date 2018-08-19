@@ -70,7 +70,34 @@ let property = (attribute, options) => {
   }
 
   if (type instanceof Sequelize.VIRTUAL) {
-    return type.returnType ? property({ type: type.returnType, allowNull: type.allowNull }, options) : { type: addNull ? ['string', 'null'] : 'string'};
+    if (type.returnType) {
+      return property({
+        type: type.returnType,
+        allowNull: type.allowNull
+      }, options);
+    }
+    if (addNull) {
+      return {
+        type: ['string', 'null']
+      };
+    }
+    return {
+      type: 'string'
+    };
+  }
+
+  if (type instanceof Sequelize.ARRAY) {
+    if (type.type) {
+      return {
+        type: 'array',
+        items: property({
+          type: type.type
+        })
+      };
+    }
+    return {
+      type: 'array'
+    }
   }
 
   // Need suport for the following
@@ -78,7 +105,6 @@ let property = (attribute, options) => {
   // NOW
   // BLOB
   // RANGE
-  // ARRAY
   // GEOMETRY
   // GEOGRAPHY
 
