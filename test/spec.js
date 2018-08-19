@@ -180,6 +180,34 @@ describe('sequelize-json-schema', () => {
       expect(def.properties.secret.maxLength).to.equal(40);
     });
 
+    it('should include provided examples', () => {
+      let Simple = sequelize.define('simple', {
+        title: {
+          type: Sequelize.STRING,
+          example: '10 Shocking Things That Go Viral'
+        },
+        articleId: {
+          type: Sequelize.INTEGER,
+          example: 42
+        },
+        tags: {
+          type: Sequelize.ARRAY(Sequelize.STRING),
+          example: ['clickbait', 'viral', 'article']
+        }
+      });
+
+      let def = definition(Simple);
+      expect(def.properties.title).to.exist;
+      expect(def.properties.title.example).to.equal('10 Shocking Things That Go Viral');
+      expect(def.properties.articleId).to.exist;
+      expect(def.properties.articleId.example).to.equal(42);
+      expect(def.properties.tags).to.exist;
+      expect(def.properties.tags.example).to.exist;
+      expect(def.properties.tags.example).to.be.an('array');
+      expect(def.properties.tags.example).to.contain('clickbait');
+      expect(def.properties.tags.example).to.contain('viral');
+      expect(def.properties.tags.example).to.contain('article');
+    });
   });
 
 
