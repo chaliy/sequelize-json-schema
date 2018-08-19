@@ -180,6 +180,58 @@ describe('sequelize-json-schema', () => {
       expect(def.properties.secret.maxLength).to.equal(40);
     });
 
+    it('should support ARRAY type', () => {
+      let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        arrayOfStrings: Sequelize.ARRAY(Sequelize.STRING),
+        arrayOfIntegers: Sequelize.ARRAY(Sequelize.INTEGER)
+      });
+
+      let def = definition(Simple);
+      expect(def.properties.arrayOfStrings).to.exist;
+      expect(def.properties.arrayOfStrings.type).to.equal('array');
+      expect(def.properties.arrayOfStrings.items).to.exist;
+      expect(def.properties.arrayOfStrings.items.type).to.exist;
+      expect(def.properties.arrayOfStrings.items.type).to.equal('string');
+      expect(def.properties.arrayOfIntegers).to.exist;
+      expect(def.properties.arrayOfIntegers.type).to.equal('array');
+      expect(def.properties.arrayOfIntegers.items).to.exist;
+      expect(def.properties.arrayOfIntegers.items.type).to.exist;
+      expect(def.properties.arrayOfIntegers.items.type).to.equal('integer');
+    });
+
+    it('should correctly identify VIRTUAL type, if specified', () => {
+      let Simple = sequelize.define('simple', {
+        title: Sequelize.STRING,
+        virtualReturningString: Sequelize.VIRTUAL(Sequelize.STRING),
+        virtualReturningInteger: Sequelize.VIRTUAL(Sequelize.INTEGER),
+        virtualReturningArray: Sequelize.VIRTUAL(Sequelize.ARRAY),
+        virtualReturningArrayOfStrings: Sequelize.VIRTUAL(Sequelize.ARRAY(Sequelize.STRING)),
+        virtualReturningArrayOfIntegers: Sequelize.VIRTUAL(Sequelize.ARRAY(Sequelize.INTEGER)),
+      });
+
+      let def = definition(Simple);
+      expect(def.properties.title).to.exist;
+      expect(def.properties.title.maxLength).to.equal(255);
+      expect(def.properties.virtualReturningString).to.exist;
+      expect(def.properties.virtualReturningString.maxLength).to.equal(255);
+      expect(def.properties.virtualReturningInteger).to.exist;
+      expect(def.properties.virtualReturningInteger.type).to.equal('integer');
+      expect(def.properties.virtualReturningString.maxLength).to.equal(255);
+      expect(def.properties.virtualReturningArray).to.exist;
+      expect(def.properties.virtualReturningArray.type).to.equal('array');
+      expect(def.properties.virtualReturningArrayOfStrings).to.exist;
+      expect(def.properties.virtualReturningArrayOfStrings.type).to.equal('array');
+      expect(def.properties.virtualReturningArrayOfStrings.items).to.exist;
+      expect(def.properties.virtualReturningArrayOfStrings.items.type).to.exist;
+      expect(def.properties.virtualReturningArrayOfStrings.items.type).to.equal('string');
+      expect(def.properties.virtualReturningArrayOfIntegers).to.exist;
+      expect(def.properties.virtualReturningArrayOfIntegers.type).to.equal('array');
+      expect(def.properties.virtualReturningArrayOfIntegers.items).to.exist;
+      expect(def.properties.virtualReturningArrayOfIntegers.items.type).to.exist;
+      expect(def.properties.virtualReturningArrayOfIntegers.items.type).to.equal('integer');
+    });
+
   });
 
 
