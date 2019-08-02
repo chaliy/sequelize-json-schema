@@ -8,8 +8,11 @@
     "json-schema",
     "swagger"
   ],
+  "engines": {
+    "node": ">= 8"
+  },
   "peerDependencies": {
-    "sequelize": ">= 3"
+    "sequelize": ">= 4"
   },
   "main": "src/index.js",
   "scripts": {
@@ -26,10 +29,8 @@
   },
   "homepage": "https://github.com/chaliy/sequelize-json-schema#readme",
   "devDependencies": {
-    "chai": "^3.5.0",
-    "mocha": "^2.5.3",
-    "mocha-junit-reporter": "^1.12.1",
-    "sequelize": ">= 3",
-    "sqlite3": "^3.1.4"
+    "mocha": ">= 6",
+    "sequelize": ">= 4",
+    "sqlite3": "4.0.9"
   }
 }

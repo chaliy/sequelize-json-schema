@@ -1,124 +1,134 @@
-'use strict';
+const ANY = {type: ['object', 'array', 'boolean', 'number', 'string']};
 
-let Sequelize = require('sequelize');
+const ARRAY = {type: 'array'};
+const BOOLEAN = {type: 'boolean'}
+const INTEGER = {type: 'integer'};
+const NUMBER = {type: 'number'};
+const OBJECT = {type: 'object'};
+const STRING = {type: 'string'};
 
-let enumProperty = attribute => {
-    return {
-      enum: attribute.values
-    }
-}
+const STRING_LENGTHS = {tiny: 255, medium: 16777215, long: 4294967295};
 
-let property = (attribute, options) => {
-  let type = attribute.type;
+// Logic for transforming Sequelize attributes to JSON-Schema property.
+const _TRANSFORMS = {
+  // ABSTRACT: null,
 
-  let addNull = attribute.allowNull && options.allowNull
+  ARRAY(att) {
+    return {...ARRAY, items: attributeSchema({type: att.type.type})};
+  },
 
-  if (type instanceof Sequelize.ENUM) return enumProperty(attribute);
-  if (type instanceof Sequelize.BOOLEAN) return { type: addNull ? ['boolean', 'null'] : 'boolean' };
-  if (type instanceof Sequelize.INTEGER) return { type: addNull ? ['integer', 'null'] : 'integer', format: 'int32' };
-  if (type instanceof Sequelize.BIGINT) return { type: addNull ? ['integer', 'null'] : 'integer', format: 'int64' };
+  BIGINT() {return {...INTEGER, format: 'int64'};},
+  BLOB() {return {...STRING, contentEncoding: 'base64'};},
+  BOOLEAN() {return {...BOOLEAN};},
+  CHAR() {return {...STRING};},
+  CIDR() {return {...STRING};},
+  CITEXT(att) {return _TRANSFORMS.STRING(att)},
+  DATE() {return {...STRING, format: 'date-time'};},
+  DATEONLY() {return {...STRING, format: 'date'};},
+  DECIMAL() {return {...NUMBER};},
 
-  if (type instanceof Sequelize.FLOAT
-    || type instanceof Sequelize.REAL) {
-    return { type: addNull ? ['number', 'null'] : 'number', format: 'float' };
-  }
+  // This is the `key` for DOUBLE datatypes... ¯\_(ツ)_/¯
+  'DOUBLE PRECISION'() {return {...NUMBER, format: 'double'};},
 
-  if (type instanceof Sequelize.DOUBLE) { return { type: addNull ? ['number', 'null'] : 'number', format: 'double' }; }
+  ENUM(att)  {
+    return {...STRING, enum: [...att.values]};
+  },
 
-  if (type instanceof Sequelize.DECIMAL) { return { type: addNull ? ['number', 'null'] : 'number' }; }
+  FLOAT() {return {...NUMBER, format: 'float'};},
+  // GEOGRAPHY: null,
+  // GEOMETRY: null,
+  // HSTORE: null,
+  INET() {return {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]};},
+  INTEGER() {return {...INTEGER, format: 'int32'};},
+  JSON() {return {...ANY};},
+  JSONB() {return {...ANY};},
+  MACADDR() {return {...STRING};},
+  MEDIUMINT() {return {...INTEGER};},
+  // NOW: null,
+  NUMBER() {return {...NUMBER};},
+  // RANGE: null,
+  REAL() {return {...NUMBER};},
+  SMALLINT() {return {...INTEGER};},
 
-  if (type instanceof Sequelize.DATEONLY) { return { type: addNull ? ['string', 'null'] : 'string', format: 'date' }; }
-  if (type instanceof Sequelize.DATE) { return { type: addNull ? ['string', 'null'] : 'string', format: 'date-time' }; }
-  if (type instanceof Sequelize.TIME) { return { type: addNull ? ['string', 'null'] : 'string'}; }
+  STRING(att) {
+    const schema = {...STRING};
+    let length = att.type.options && att.type.options.length;
 
-  if (type instanceof Sequelize.UUID
-    || type instanceof Sequelize.UUIDV1
-    || type instanceof Sequelize.UUIDV4) {
-    return { type: addNull ? ['string', 'null'] : 'string', format: 'uuid' };
-  }
-
-  if (type instanceof Sequelize.CHAR
-    || type instanceof Sequelize.STRING
-    || type instanceof Sequelize.TEXT
-    || type instanceof Sequelize.UUID
-    || type instanceof Sequelize.DATE
-    || type instanceof Sequelize.DATEONLY
-    || type instanceof Sequelize.TIME) {
-
-    const schema = {type: addNull ? ['string', 'null'] : 'string'};
-
-    var maxLength = (type.options && type.options.length) || type._length;
-
-    if (type instanceof Sequelize.TEXT) {
-      // Handle 'tiny', 'medium', and 'long' allowed for MySQL
-      switch (maxLength) {
-        case 'tiny': maxLength = 255; break;
-        case 'medium': maxLength = 16777215; break;
-        case 'long': maxLength = 4294967295; break;
-      }
-
-    }
-
-    if (maxLength) schema.maxLength = maxLength;
+    // Resolve aliases
+    length = STRING_LENGTHS[length] || length;
+    if (length) schema.maxLength = length;
 
     return schema;
-  }
+  },
 
-  if (type instanceof Sequelize.JSON
-    || type instanceof Sequelize.JSONB) {
-    return { type: 'any' };
-  }
+  TEXT(att) {
+    return _TRANSFORMS.STRING(att);
+  },
 
-  if (type instanceof Sequelize.VIRTUAL) {
-    return type.returnType ? property({ type: type.returnType, allowNull: type.allowNull }, options) : { type: addNull ? ['string', 'null'] : 'string'};
-  }
+  TIME() {return {...STRING, format: 'time'};},
 
-  // Need suport for the following
-  // HSTORE
-  // NOW
-  // BLOB
-  // RANGE
-  // ARRAY
-  // GEOMETRY
-  // GEOGRAPHY
+  TINYINT() {return {...NUMBER};},
+  UUID() {return {...STRING, format: 'uuid'};},
+  UUIDV1() {return {...STRING, format: 'uuid'};},
+  UUIDV4() {return {...STRING, format: 'uuid'};},
 
-  console.log(`Unable to convert ${type.key || type.toSql()} to a schema property`);
-
-  return { type: 'any' };
+  VIRTUAL(att) {
+    // Can we just get Optional Chaining support already... :-D
+    const returnType = att.type && att.returnType;
+    return attributeSchema({type: att.returnType});
+  },
 };
 
 /**
+ * @param {Attribute} att Sequelize attribute
+ * @returns {Object} JSON Schema
+ */
+function attributeSchema(att) {
+  const transform = att && att.type && _TRANSFORMS[att.type.key];
+  let schema = transform ? transform(att) : transform;
+
+  // Use "any" schema for anything that's not recognized.  'Not entirely sure
+  // this is the right thing to do.  File an issue if you think it should behave
+  // differently.
+  if (!schema) schema = {...ANY};
+
+  // Add 'null' type?
+  if (att.allowNull) {
+    if (!Array.isArray(schema.type)) schema.type = [schema.type];
+    schema.type.push('null');
+  }
+
+  return schema;
+}
+
+/**
  * Generates JSON Schema by specified Sequelize Model
- * @constructor
- * @param {object} model - The Sequelize Model
- * @param {objecct} options - Optional options
+ *
+ * @param {Model} model Sequelize.Model to schema-ify
+ * @param {Object} options Optional options
+ * @param {Boolean} options.alwaysRequired
+ * @param {Array} options.atts
+ * @param {Array} options.exclude
+ * @param {Array} options.private
  */
-module.exports = (model, options) => {
-
-  options = options || {};
-
+module.exports = (model, options = {}) => {
   const schema = {
-    type: 'object',
+    ...OBJECT,
     properties: {},
     required: []
   };
 
   let exclude = options.exclude || options.private || [];
-  let attributes = options.attributes || Object.keys(model.rawAttributes);
+  let atts = options.attributes || Object.keys(model.rawAttributes);
+  if (exclude) atts = atts.filter(k => !exclude.includes(k));
 
-  for(let attributeName of attributes) {
+  for (const attName of atts) {
+    let att = model.rawAttributes[attName];
+    if (!att) continue;
 
-    if (exclude.indexOf(attributeName) >= 0) {
-      continue;
-    }
-
-    let attribute = model.rawAttributes[attributeName];
-
-    if (attribute) {
-      schema.properties[attributeName] = property(attribute, options);
-      if (false === attribute.allowNull || options.alwaysRequired) {
-        schema.required.push(attributeName);
-      }
+    schema.properties[attName] = attributeSchema(att);
+    if (att.allowNull === false || options.alwaysRequired) {
+      schema.required.push(attName);
     }
   }
 

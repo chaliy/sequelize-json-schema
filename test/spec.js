@@ -1,187 +1,206 @@
-'use strict';
+const sjs = require('../src');
+const Sequelize = require('sequelize');
+const {ok, equal, notEqual, deepEqual} = require('assert');
+const sequelize = new Sequelize('database', 'username', 'password', {dialect: 'sqlite'});
 
-let expect = require('chai').expect;
-
-let Sequelize = require('sequelize');
-let definition = require('../src');
+// Hack define() to remove extraneous fields while testing (id, timestamps)
+sequelize._define = sequelize.define;
+sequelize.define = function(name, columns, options = {}) {
+  options.timestamps = false;
+  const model = this._define(name, columns, options);
+  model.removeAttribute('id');
+  return model;
+}
 
 describe('sequelize-json-schema', () => {
+  it('empty model', () => {
+    const model = sequelize.define('_model', {});
 
-  let sequelize = new Sequelize('database', 'username', 'password', {
-    dialect: 'sqlite'
+    deepEqual(sjs(model), { type: 'object', properties: {}, required: [] });
   });
 
-  describe('definition', () => {
-
-    it('should build definition for empty model', () => {
-
-      let Empty = sequelize.define('empty', {});
-
-      let def = definition(Empty);
-
-      expect(def.type).to.be.equal('object');
-      expect(def.properties).to.be.not.null;
-      expect(def.properties.id).to.be.not.null;
+  it('basic model', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      description: Sequelize.TEXT
     });
 
-    it('should build definition for simple model', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        description: Sequelize.TEXT
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.title.type).to.be.equal('string');
-      expect(def.properties.description).to.exist;
-      expect(def.properties.description.type).to.be.equal('string');
-
-    });
-
-    it('should build definition for simple model excluding private columns', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        exclude: ['password']
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.not.exist;
-
-    });
-
-    it('should build definition for simple model only for defined columns', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          type: Sequelize.STRING
+    deepEqual(
+      sjs(model),
+      {
+        type: 'object',
+        properties:
+        {
+          title: { type: 'string' },
+          description: { type: 'string' },
         },
-        secret: Sequelize.INTEGER
-      });
+        required: []
+      }
+    );
+  });
 
-      let def = definition(Simple, {
+  it('excluding columns', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      password: {type: Sequelize.STRING},
+    });
+
+    deepEqual(
+      sjs(model, {exclude: ['password']}),
+      {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+        },
+        required: []
+      }
+    );
+  });
+
+  it('explicit attributes and excluding columns', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      password: {type: Sequelize.STRING},
+      secret: Sequelize.INTEGER
+    });
+
+    deepEqual(
+      sjs(model, {
         attributes: ['title', 'password'],
         exclude: ['password']
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.not.exist;
-      expect(def.properties.secret).to.not.exist;
-
-    });
-
-    it('should add required for non-null columns', () => {
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: false,
-          type: Sequelize.STRING
+      }),
+      {
+        type: 'object',
+        properties: {
+          title: {type: 'string'}
         },
-        secret: Sequelize.INTEGER
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).to.not.contain('title');
-      expect(def.required).to.contain('password');
-      expect(def.required).to.not.contain('secret');
-      expect(def.properties.secret).to.exist;
-    });
-
-    it('should add null type if option allowNull turned on', () => {
-       let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: true,
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        allowNull: true
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).not.to.contain('title');
-      expect(def.required).not.to.contain('password');
-      expect(def.properties.password.type).to.eql(['string', 'null'])
-      expect(def.properties.title.type).to.eql('string')
-    })
-
-    it('should add to required if option allowNull and alwaysRequired turned on', () => {
-       let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: true,
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        allowNull: true,
-        alwaysRequired: true
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).to.contain('title');
-      expect(def.required).to.contain('password');
-      expect(def.properties.password.type).to.eql(['string', 'null'])
-      expect(def.properties.title.type).to.eql('string')
-    })
-
-    it('should specify string length', () => {
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        tinyTitle: Sequelize.TEXT('tiny'),
-        mediumTitle: Sequelize.TEXT('medium'),
-        longTitle: Sequelize.TEXT('long'),
-        password: {
-          type: Sequelize.STRING(100)
-        },
-        secret: Sequelize.STRING(40)
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.title.maxLength).to.equal(255);
-      expect(def.properties.tinyTitle).to.exist;
-      expect(def.properties.tinyTitle.maxLength).to.equal(255);
-      expect(def.properties.mediumTitle).to.exist;
-      expect(def.properties.mediumTitle.maxLength).to.equal(16777215);
-      expect(def.properties.longTitle).to.exist;
-      expect(def.properties.longTitle.maxLength).to.equal(4294967295);
-      expect(def.properties.password).to.exist;
-      expect(def.properties.password.maxLength).to.equal(100);
-      expect(def.properties.secret).to.exist;
-      expect(def.properties.secret.maxLength).to.equal(40);
-    });
-
+        required: [],
+      }
+    )
   });
 
+  it('allowNull: false should disallow null values', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      password: {allowNull: false, type: Sequelize.STRING},
+      secret: Sequelize.INTEGER
+    });
 
+    deepEqual(sjs(model), {
+      type: 'object',
+      properties: {
+        password: {type: 'string'},
+        secret: {format: 'int32', type: 'integer'},
+        title: {type: 'string'},
+      },
+      required: ['password'],
+    });
+  });
 
+  it('allowNull: true should allow null values', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      password: {
+        allowNull: true,
+        type: Sequelize.STRING
+      }
+    });
+
+    deepEqual(
+      sjs(model, {allowNull: true}),
+      {
+        type: 'object',
+        properties:
+        {
+          title: { type: 'string' },
+          password: { type: ['string', 'null'] }
+        },
+        required: []
+      }
+    );
+  })
+
+  it('alwaysRequired prevents null values everywher', () => {
+    const model = sequelize.define('_model', {
+      title: Sequelize.STRING,
+      password: {
+        allowNull: true,
+        type: Sequelize.STRING
+      }
+    });
+
+    deepEqual(
+      sjs(model, {allowNull: true, alwaysRequired: true}),
+      {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          password: { type: ['string', 'null'] }
+        },
+        required: ['title', 'password' ]
+      }
+    );
+  })
+
+  //
+  // Test various types
+  //
+
+  /**
+   * Utility for testing the schema generated for a given Sequelize type.
+   *
+   * Takes the name of DataType, optional arguments to pass to that type, and
+   * the expected schema and performs the test.  E.g.
+   * ```
+   * _testType('ENUM', 'a', 'b', {type: 'string', values: ['a', 'b']});
+   * ```
+   * ...
+   * will test the schema created for a `DataTypes.ENUM('a', 'b')` Sequelize
+   * attribute
+   *
+   * @param {String} name DataType name
+   * @param {...args} args to pass to DataType constructor
+   * @param {Object} schema Expected schema
+   */
+  function _testType(name, ...args) {
+    const schema = args.pop();
+
+    let atts = Sequelize[name];
+    atts = args.length ? atts(...args) : atts;
+    it(`${name}${args.length ? `(${args.map(String).join()})` : '' } schema`, () => {
+      const model = sequelize.define('_model', {[`type_${name}`]: atts});
+      deepEqual(sjs(model).properties, {[`type_${name}`]: schema});
+    });
+  }
+
+  _testType('ARRAY', Sequelize.STRING, {type: 'array', items: {type: 'string'}});
+  _testType('ARRAY', Sequelize.INTEGER, {type: 'array', items: {type: 'integer', format: 'int32'}});
+  _testType('BIGINT', {type: 'integer', format: 'int64'});
+  _testType('BLOB', {type: 'string', contentEncoding: 'base64'});
+  _testType('BOOLEAN', {type: 'boolean'});
+  _testType('CHAR', {type: 'string'});
+  _testType('CIDR', {type: 'string'});
+  _testType('CITEXT', {type: 'string'});
+  _testType('DATE', {type: 'string', format: 'date-time'});
+  _testType('DATEONLY', {type: 'string', format: 'date'});
+  _testType('DECIMAL', {type: 'number'});
+  _testType('DOUBLE', {type: 'number', format: 'double'});
+  _testType('ENUM', 'abc', 123, {type: 'string', enum: ['abc', 123]});
+  _testType('FLOAT', {type: 'number', format: 'float'});
+  _testType('INET', {type: [{type: 'string', format: 'ipv4'}, {type: 'string', format: 'ipv6'}]});
+  _testType('INTEGER', {type: 'integer', format: 'int32'});
+  _testType('JSON', Sequelize.JSON(Sequelize.ARRAY), {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('JSON', {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('JSONB', {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('MACADDR', {type: 'string'});
+  _testType('MEDIUMINT', {type: 'integer'});
+  _testType('NUMBER', {type: 'number'});
+  _testType('REAL', {type: 'number'});
+  _testType('SMALLINT', { type: 'integer'});
+  _testType('STRING', { type: 'string'});
+  _testType('STRING', 100, { type: 'string', maxLength: 100});
+  _testType('STRING', 40, { type: 'string', maxLength: 40});
+  _testType('TEXT', 'long', { type: 'string', maxLength: 4294967295 });
+  _testType('TEXT', 'medium', { type: 'string', maxLength: 16777215 });
+  _testType('TEXT', 'tiny', { type: 'string', maxLength: 255 });
 });
