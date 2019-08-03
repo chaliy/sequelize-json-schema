@@ -1,7 +1,7 @@
 const ANY = {type: ['object', 'array', 'boolean', 'number', 'string']};
 
 const ARRAY = {type: 'array'};
-const BOOLEAN = {type: 'boolean'}
+const BOOLEAN = {type: 'boolean'};
 const INTEGER = {type: 'integer'};
 const NUMBER = {type: 'number'};
 const OBJECT = {type: 'object'};
@@ -14,41 +14,84 @@ const _TRANSFORMS = {
   // ABSTRACT: null,
 
   ARRAY(att) {
-    return {...ARRAY, items: attributeSchema({type: att.type.type})};
+    return {
+      ...ARRAY,
+      items: attributeSchema({type: att.type.type})
+    };
   },
 
-  BIGINT() {return {...INTEGER, format: 'int64'};},
-  BLOB() {return {...STRING, contentEncoding: 'base64'};},
-  BOOLEAN() {return {...BOOLEAN};},
-  CHAR() {return {...STRING};},
-  CIDR() {return {...STRING};},
-  CITEXT(att) {return _TRANSFORMS.STRING(att)},
-  DATE() {return {...STRING, format: 'date-time'};},
-  DATEONLY() {return {...STRING, format: 'date'};},
-  DECIMAL() {return {...NUMBER};},
+  BIGINT() {
+    return {...INTEGER, format: 'int64'};
+  },
+  BLOB() {
+    return {...STRING, contentEncoding: 'base64'};
+  },
+  BOOLEAN() {
+    return {...BOOLEAN};
+  },
+  CHAR() {
+    return {...STRING};
+  },
+  CIDR() {
+    return {...STRING};
+  },
+  CITEXT(att) {
+    return _TRANSFORMS.STRING(att);
+  },
+  DATE() {
+    return {...STRING, format: 'date-time'};
+  },
+  DATEONLY() {
+    return {...STRING, format: 'date'};
+  },
+  DECIMAL() {
+    return {...NUMBER};
+  },
 
   // This is the `key` for DOUBLE datatypes... ¯\_(ツ)_/¯
-  'DOUBLE PRECISION'() {return {...NUMBER, format: 'double'};},
+  'DOUBLE PRECISION'() {
+    return {...NUMBER, format: 'double'};
+  },
 
-  ENUM(att)  {
+  ENUM(att) {
     return {...STRING, enum: [...att.values]};
   },
 
-  FLOAT() {return {...NUMBER, format: 'float'};},
+  FLOAT() {
+    return {...NUMBER, format: 'float'};
+  },
   // GEOGRAPHY: null,
   // GEOMETRY: null,
   // HSTORE: null,
-  INET() {return {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]};},
-  INTEGER() {return {...INTEGER, format: 'int32'};},
-  JSON() {return {...ANY};},
-  JSONB() {return {...ANY};},
-  MACADDR() {return {...STRING};},
-  MEDIUMINT() {return {...INTEGER};},
+  INET() {
+    return {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]};
+  },
+  INTEGER() {
+    return {...INTEGER, format: 'int32'};
+  },
+  JSON() {
+    return {...ANY};
+  },
+  JSONB() {
+    return {...ANY};
+  },
+  MACADDR() {
+    return {...STRING};
+  },
+  MEDIUMINT() {
+    return {...INTEGER};
+  },
   // NOW: null,
-  NUMBER() {return {...NUMBER};},
+  NUMBER() {
+    return {...NUMBER};
+  },
   // RANGE: null,
-  REAL() {return {...NUMBER};},
-  SMALLINT() {return {...INTEGER};},
+  REAL() {
+    return {...NUMBER};
+  },
+  SMALLINT() {
+    return {...INTEGER};
+  },
 
   STRING(att) {
     const schema = {...STRING};
@@ -65,17 +108,25 @@ const _TRANSFORMS = {
     return _TRANSFORMS.STRING(att);
   },
 
-  TIME() {return {...STRING, format: 'time'};},
+  TIME() {
+    return {...STRING, format: 'time'};
+  },
 
-  TINYINT() {return {...NUMBER};},
-  UUID() {return {...STRING, format: 'uuid'};},
-  UUIDV1() {return {...STRING, format: 'uuid'};},
-  UUIDV4() {return {...STRING, format: 'uuid'};},
+  TINYINT() {
+    return {...NUMBER};
+  },
+  UUID() {
+    return {...STRING, format: 'uuid'};
+  },
+  UUIDV1() {
+    return {...STRING, format: 'uuid'};
+  },
+  UUIDV4() {
+    return {...STRING, format: 'uuid'};
+  },
 
   VIRTUAL(att) {
-    // Can we just get Optional Chaining support already... :-D
-    const returnType = att.type && att.returnType;
-    return attributeSchema({type: att.returnType});
+    return attributeSchema({type: att.type && att.type.returnType});
   },
 };
 
@@ -102,28 +153,24 @@ function attributeSchema(att) {
 }
 
 /**
- * Generates JSON Schema by specified Sequelize Model
+ * Generates JSON Schema by specified Sequelize Model
  *
- * @param {Model} model Sequelize.Model to schema-ify
- * @param {Object} options Optional options
- * @param {Boolean} options.alwaysRequired
- * @param {Array} options.attributes
- * @param {Array} options.exclude
- * @param {Array} options.private
- */
+ * @param {Model} model Sequelize.Model to schema-ify
+ * @param {Object} options Optional options
+ * @param {Boolean} options.alwaysRequired
+ * @param {Array} options.attributes
+ * @param {Array} options.exclude
+ * @param {Array} options.private
+ */
 module.exports = (model, options = {}) => {
-  const schema = {
-    ...OBJECT,
-    properties: {},
-    required: []
-  };
+  const schema = {...OBJECT, properties: {}, required: []};
 
-  let exclude = options.exclude || options.private || [];
+  const exclude = options.exclude || options.private || [];
   let atts = options.attributes || Object.keys(model.rawAttributes);
-  if (exclude) atts = atts.filter(k => !exclude.includes(k));
+  atts = atts.filter(k => !exclude.includes(k));
 
   for (const attName of atts) {
-    let att = model.rawAttributes[attName];
+    const att = model.rawAttributes[attName];
     if (!att) continue;
 
     schema.properties[attName] = attributeSchema(att);

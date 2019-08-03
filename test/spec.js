@@ -1,6 +1,6 @@
 const sjs = require('../src');
 const Sequelize = require('sequelize');
-const {ok, equal, notEqual, deepEqual} = require('assert');
+const {deepEqual} = require('assert');
 const sequelize = new Sequelize('database', 'username', 'password', {dialect: 'sqlite'});
 
 // Hack define() to remove extraneous fields while testing (id, timestamps)
@@ -10,13 +10,13 @@ sequelize.define = function(name, columns, options = {}) {
   const model = this._define(name, columns, options);
   model.removeAttribute('id');
   return model;
-}
+};
 
 describe('sequelize-json-schema', () => {
   it('empty model', () => {
     const model = sequelize.define('_model', {});
 
-    deepEqual(sjs(model), { type: 'object', properties: {}, required: [] });
+    deepEqual(sjs(model), {type: 'object', properties: {}, required: []});
   });
 
   it('basic model', () => {
@@ -31,8 +31,8 @@ describe('sequelize-json-schema', () => {
         type: 'object',
         properties:
         {
-          title: { type: 'string' },
-          description: { type: 'string' },
+          title: {type: 'string'},
+          description: {type: 'string'},
         },
         required: []
       }
@@ -50,7 +50,7 @@ describe('sequelize-json-schema', () => {
       {
         type: 'object',
         properties: {
-          title: { type: 'string' },
+          title: {type: 'string'},
         },
         required: []
       }
@@ -76,7 +76,7 @@ describe('sequelize-json-schema', () => {
         },
         required: [],
       }
-    )
+    );
   });
 
   it('allowNull: false should disallow null values', () => {
@@ -112,13 +112,13 @@ describe('sequelize-json-schema', () => {
         type: 'object',
         properties:
         {
-          title: { type: 'string' },
-          password: { type: ['string', 'null'] }
+          title: {type: 'string'},
+          password: {type: ['string', 'null']}
         },
         required: []
       }
     );
-  })
+  });
 
   it('alwaysRequired prevents null values everywher', () => {
     const model = sequelize.define('_model', {
@@ -134,13 +134,13 @@ describe('sequelize-json-schema', () => {
       {
         type: 'object',
         properties: {
-          title: { type: 'string' },
-          password: { type: ['string', 'null'] }
+          title: {type: 'string'},
+          password: {type: ['string', 'null']}
         },
-        required: ['title', 'password' ]
+        required: ['title', 'password']
       }
     );
-  })
+  });
 
   //
   // Test various types
@@ -196,11 +196,11 @@ describe('sequelize-json-schema', () => {
   _testType('MEDIUMINT', {type: 'integer'});
   _testType('NUMBER', {type: 'number'});
   _testType('REAL', {type: 'number'});
-  _testType('SMALLINT', { type: 'integer'});
-  _testType('STRING', { type: 'string'});
-  _testType('STRING', 100, { type: 'string', maxLength: 100});
-  _testType('STRING', 40, { type: 'string', maxLength: 40});
-  _testType('TEXT', 'long', { type: 'string', maxLength: 4294967295 });
-  _testType('TEXT', 'medium', { type: 'string', maxLength: 16777215 });
-  _testType('TEXT', 'tiny', { type: 'string', maxLength: 255 });
+  _testType('SMALLINT', {type: 'integer'});
+  _testType('STRING', {type: 'string'});
+  _testType('STRING', 100, {type: 'string', maxLength: 100});
+  _testType('STRING', 40, {type: 'string', maxLength: 40});
+  _testType('TEXT', 'long', {type: 'string', maxLength: 4294967295});
+  _testType('TEXT', 'medium', {type: 'string', maxLength: 16777215});
+  _testType('TEXT', 'tiny', {type: 'string', maxLength: 255});
 });

@@ -16,6 +16,7 @@
   },
   "main": "src/index.js",
   "scripts": {
+    "pretest": "eslint .",
     "test": "mocha"
   },
   "repository": {
@@ -29,6 +30,7 @@
   },
   "homepage": "https://github.com/chaliy/sequelize-json-schema#readme",
   "devDependencies": {
+    "eslint": "6.1.0",
     "mocha": ">= 6",
     "sequelize": ">= 4",
     "sqlite3": "4.0.9"
