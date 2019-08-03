@@ -107,7 +107,7 @@ function attributeSchema(att) {
  * @param {Model} model Sequelize.Model to schema-ify
  * @param {Object} options Optional options
  * @param {Boolean} options.alwaysRequired
- * @param {Array} options.atts
+ * @param {Array} options.attributes
  * @param {Array} options.exclude
  * @param {Array} options.private
  */
