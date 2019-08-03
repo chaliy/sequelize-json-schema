@@ -1,9 +1,11 @@
-const sjs = require('../src');
 const Sequelize = require('sequelize');
 const {deepEqual} = require('assert');
-const sequelize = new Sequelize('database', 'username', 'password', {dialect: 'sqlite'});
+const {getJSONSchema} = require('../src');
 
-// Hack define() to remove extraneous fields while testing (id, timestamps)
+const {DataTypes} = Sequelize;
+const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+
+// Hack define() to remove extraneous fields (id, timestamps) while testing
 sequelize._define = sequelize.define;
 sequelize.define = function(name, columns, options = {}) {
   options.timestamps = false;
@@ -16,128 +18,117 @@ describe('sequelize-json-schema', () => {
   it('empty model', () => {
     const model = sequelize.define('_model', {});
 
-    deepEqual(sjs(model), {type: 'object', properties: {}, required: []});
+    deepEqual(getJSONSchema(model), {type: 'object', properties: {}, required: []});
   });
 
   it('basic model', () => {
     const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      description: Sequelize.TEXT
+      s1: DataTypes.STRING,
     });
 
     deepEqual(
-      sjs(model),
+      getJSONSchema(model),
       {
         type: 'object',
         properties:
         {
-          title: {type: 'string'},
-          description: {type: 'string'},
+          s1: {type: ['string', 'null']},
         },
         required: []
       }
     );
   });
 
-  it('excluding columns', () => {
+  it('allowNull:true => allows null', () => {
     const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      password: {type: Sequelize.STRING},
+      s1: DataTypes.STRING,
+      s2: {allowNull: true, type: DataTypes.STRING},
     });
 
-    deepEqual(
-      sjs(model, {exclude: ['password']}),
-      {
-        type: 'object',
-        properties: {
-          title: {type: 'string'},
-        },
-        required: []
-      }
-    );
+    deepEqual(getJSONSchema(model), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: ['string', 'null']},
+      },
+      required: [],
+    });
   });
 
-  it('explicit attributes and excluding columns', () => {
+  it('allowNull:false => omits null, requires property', () => {
     const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      password: {type: Sequelize.STRING},
-      secret: Sequelize.INTEGER
+      s1: DataTypes.STRING,
+      s2: {allowNull: false, type: DataTypes.STRING},
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(getJSONSchema(model), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: 'string'},
+        s3: {type: ['string', 'null']},
+      },
+      required: ['s2'],
+    });
+  });
+
+  it('options.include', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
     });
 
     deepEqual(
-      sjs(model, {
-        attributes: ['title', 'password'],
-        exclude: ['password']
-      }),
+      getJSONSchema(model, {include: ['s1', 's2']}),
       {
         type: 'object',
         properties: {
-          title: {type: 'string'}
+          s1: {type: ['string', 'null']},
+          s2: {type: ['string', 'null']},
         },
         required: [],
       }
     );
   });
 
-  it('allowNull: false should disallow null values', () => {
+  it('options.exclude', () => {
     const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      password: {allowNull: false, type: Sequelize.STRING},
-      secret: Sequelize.INTEGER
-    });
-
-    deepEqual(sjs(model), {
-      type: 'object',
-      properties: {
-        password: {type: 'string'},
-        secret: {format: 'int32', type: 'integer'},
-        title: {type: 'string'},
-      },
-      required: ['password'],
-    });
-  });
-
-  it('allowNull: true should allow null values', () => {
-    const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      password: {
-        allowNull: true,
-        type: Sequelize.STRING
-      }
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
     });
 
     deepEqual(
-      sjs(model, {allowNull: true}),
+      getJSONSchema(model, {exclude: ['s2']}),
       {
         type: 'object',
-        properties:
-        {
-          title: {type: 'string'},
-          password: {type: ['string', 'null']}
+        properties: {
+          s1: {type: ['string', 'null']},
         },
         required: []
       }
     );
   });
 
-  it('alwaysRequired prevents null values everywher', () => {
+  it('options.include <=> options.exclude interaction', () => {
     const model = sequelize.define('_model', {
-      title: Sequelize.STRING,
-      password: {
-        allowNull: true,
-        type: Sequelize.STRING
-      }
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
     });
 
     deepEqual(
-      sjs(model, {allowNull: true, alwaysRequired: true}),
+      getJSONSchema(model, {
+        include: ['s1', 's2'],
+        exclude: ['s2']
+      }),
       {
         type: 'object',
         properties: {
-          title: {type: 'string'},
-          password: {type: ['string', 'null']}
+          s1: {type: ['string', 'null']}
         },
-        required: ['title', 'password']
+        required: [],
       }
     );
   });
@@ -147,15 +138,15 @@ describe('sequelize-json-schema', () => {
   //
 
   /**
-   * Utility for testing the schema generated for a given Sequelize type.
+   * Utility for testing the schema generated for a given DataTypes type.
    *
    * Takes the name of DataType, optional arguments to pass to that type, and
    * the expected schema and performs the test.  E.g.
    * ```
-   * _testType('ENUM', 'a', 'b', {type: 'string', values: ['a', 'b']});
+   * _testType('ENUM', 'a', 'b', {type: ['string', 'null'], values: ['a', 'b']});
    * ```
    * ...
-   * will test the schema created for a `DataTypes.ENUM('a', 'b')` Sequelize
+   * will test the schema created for a `DataTypes.ENUM('a', 'b')` DataTypes
    * attribute
    *
    * @param {String} name DataType name
@@ -165,16 +156,23 @@ describe('sequelize-json-schema', () => {
   function _testType(name, ...args) {
     const schema = args.pop();
 
-    let atts = Sequelize[name];
+    let atts = DataTypes[name];
     atts = args.length ? atts(...args) : atts;
-    it(`${name}${args.length ? `(${args.map(String).join()})` : '' } schema`, () => {
-      const model = sequelize.define('_model', {[`type_${name}`]: atts});
-      deepEqual(sjs(model).properties, {[`type_${name}`]: schema});
+
+    const testName = `${name}${args.length ? `(${args.map(String).join()})` : '' } schema`;
+    const attName = `${name.toLowerCase()}Attribute`;
+
+    it(testName, () => {
+      // `allowNull: false` here types don't have 'null' everywhere
+      const model = sequelize.define('_model', {
+        [attName]: {type: atts, allowNull: false}
+      });
+      deepEqual(getJSONSchema(model).properties, {[attName]: schema});
     });
   }
 
-  _testType('ARRAY', Sequelize.STRING, {type: 'array', items: {type: 'string'}});
-  _testType('ARRAY', Sequelize.INTEGER, {type: 'array', items: {type: 'integer', format: 'int32'}});
+  _testType('ARRAY', DataTypes.STRING, {type: 'array', items: {type: 'string'}});
+  _testType('ARRAY', DataTypes.INTEGER, {type: 'array', items: {type: 'integer', format: 'int32'}});
   _testType('BIGINT', {type: 'integer', format: 'int64'});
   _testType('BLOB', {type: 'string', contentEncoding: 'base64'});
   _testType('BOOLEAN', {type: 'boolean'});
@@ -189,7 +187,7 @@ describe('sequelize-json-schema', () => {
   _testType('FLOAT', {type: 'number', format: 'float'});
   _testType('INET', {type: [{type: 'string', format: 'ipv4'}, {type: 'string', format: 'ipv6'}]});
   _testType('INTEGER', {type: 'integer', format: 'int32'});
-  _testType('JSON', Sequelize.JSON(Sequelize.ARRAY), {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('JSON', DataTypes.JSON(DataTypes.ARRAY), {type: ['object', 'array', 'boolean', 'number', 'string']});
   _testType('JSON', {type: ['object', 'array', 'boolean', 'number', 'string']});
   _testType('JSONB', {type: ['object', 'array', 'boolean', 'number', 'string']});
   _testType('MACADDR', {type: 'string'});

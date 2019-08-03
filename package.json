@@ -16,6 +16,7 @@
   },
   "main": "src/index.js",
   "scripts": {
+    "prepare": "runmd --output README.md src/README_js.md",
     "pretest": "eslint .",
     "test": "mocha"
   },
@@ -34,5 +35,8 @@
     "mocha": ">= 6",
     "sequelize": ">= 4",
     "sqlite3": "4.0.9"
+  },
+  "dependencies": {
+    "runmd": "1.2.1"
   }
 }

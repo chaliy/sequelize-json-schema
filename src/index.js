@@ -1,5 +1,7 @@
+// Common types.  These should never be exposed directly but, rather, get cloned
+// before being returned.  This avoids cross-contamination if a user modifies
+// the their schema.
 const ANY = {type: ['object', 'array', 'boolean', 'number', 'string']};
-
 const ARRAY = {type: 'array'};
 const BOOLEAN = {type: 'boolean'};
 const INTEGER = {type: 'integer'};
@@ -9,14 +11,15 @@ const STRING = {type: 'string'};
 
 const STRING_LENGTHS = {tiny: 255, medium: 16777215, long: 4294967295};
 
-// Logic for transforming Sequelize attributes to JSON-Schema property.
-const _TRANSFORMS = {
+// Per-type transformation logic
+const TRANSFORMS = {
   // ABSTRACT: null,
 
   ARRAY(att) {
     return {
       ...ARRAY,
-      items: attributeSchema({type: att.type.type})
+      // Sequelize requires att.type to be defined for ARRAYs
+      items: attributeSchema({type: att.type.type, allowNull: false})
     };
   },
 
@@ -36,7 +39,7 @@ const _TRANSFORMS = {
     return {...STRING};
   },
   CITEXT(att) {
-    return _TRANSFORMS.STRING(att);
+    return TRANSFORMS.STRING(att);
   },
   DATE() {
     return {...STRING, format: 'date-time'};
@@ -70,10 +73,10 @@ const _TRANSFORMS = {
     return {...INTEGER, format: 'int32'};
   },
   JSON() {
-    return {...ANY};
+    return {...ANY, type: [...ANY.type]};
   },
   JSONB() {
-    return {...ANY};
+    return {...ANY, type: [...ANY.type]};
   },
   MACADDR() {
     return {...STRING};
@@ -105,7 +108,7 @@ const _TRANSFORMS = {
   },
 
   TEXT(att) {
-    return _TRANSFORMS.STRING(att);
+    return TRANSFORMS.STRING(att);
   },
 
   TIME() {
@@ -126,58 +129,105 @@ const _TRANSFORMS = {
   },
 
   VIRTUAL(att) {
+    // Use schema for the return type (if defined)
     return attributeSchema({type: att.type && att.type.returnType});
   },
 };
 
 /**
+ * Add/remove `null` type from an property schema.  This will switch `type`
+ * between an array and a single value, depending on the # of types.
+ *
+ * @param {Object} prop property schema
+ * @param {Boolean} allowNull true = add null type, false = remove null type
+ */
+function allowNullType(prop, allowNull = true) {
+  // Sanity check that this is a property schema
+  if (!prop.type) throw Error('Attribute `type` not defined');
+
+  const hasNull = Array.isArray(prop.type) ?
+    prop.type.includes('null') :
+    prop.type == 'null';
+
+  if (hasNull == allowNull) return;
+
+  // The property should already have a type of some sort
+  if (allowNull) {
+    // Convert to array
+    if (!Array.isArray(prop.type)) prop.type = [prop.type];
+    prop.type.push('null');
+  } else {
+    prop.type = prop.type.filter(t => t != 'null');
+    if (prop.type.length == 1) prop.type = prop.type[0];
+  }
+
+  return prop;
+}
+
+/**
+ * Generate JSON schema for a Sequelize attribute
+ *
  * @param {Attribute} att Sequelize attribute
- * @returns {Object} JSON Schema
+ * @returns {Object} property schema
  */
 function attributeSchema(att) {
-  const transform = att && att.type && _TRANSFORMS[att.type.key];
+  const transform = att && att.type && TRANSFORMS[att.type.key];
   let schema = transform ? transform(att) : transform;
 
   // Use "any" schema for anything that's not recognized.  'Not entirely sure
   // this is the right thing to do.  File an issue if you think it should behave
   // differently.
-  if (!schema) schema = {...ANY};
+  if (!schema) schema = {...ANY, type: [...ANY.type]};
 
   // Add 'null' type?
-  if (att.allowNull) {
-    if (!Array.isArray(schema.type)) schema.type = [schema.type];
-    schema.type.push('null');
-  }
+  if (att.allowNull !== false) allowNullType(schema, att.allowNull);
 
   return schema;
 }
 
 /**
- * Generates JSON Schema by specified Sequelize Model
+ * Generate JSON Schema for a Sequelize Model
  *
  * @param {Model} model Sequelize.Model to schema-ify
  * @param {Object} options Optional options
- * @param {Boolean} options.alwaysRequired
- * @param {Array} options.attributes
- * @param {Array} options.exclude
- * @param {Array} options.private
+ * @param {Array} options.include Attributes to include in schema
+ * @param {Array} options.exclude  Attributes to exclude from schema (overrides
+ * `include`)
  */
-module.exports = (model, options = {}) => {
+function getJSONSchema(model, options = {}) {
   const schema = {...OBJECT, properties: {}, required: []};
 
-  const exclude = options.exclude || options.private || [];
-  let atts = options.attributes || Object.keys(model.rawAttributes);
+  const {NODE_ENV} = process.env;
+
+  // Emit warnings about legacy options
+  if (options.attributes) {
+    throw Error('`attributes` option is deprecated (Use `include` instead)');
+  }
+  if (options.private) {
+    throw Error('`private` option is deprecated (Use `exclude` instead)');
+  }
+  if (options.alwaysRequired) {
+    throw Error('`alwaysRequired` option is no longer supported (Add required properties `schema.required[]` in the returned schema');
+  }
+  if (options.allowNull) {
+    throw Error('`allowNull` option is no longer supported (Use sjs.allowNullType(property[, allowNull]) to add/remove null types in the returned schema)');
+  }
+
+
+  const exclude = options.exclude || [];
+  let atts = options.include || Object.keys(model.rawAttributes);
   atts = atts.filter(k => !exclude.includes(k));
 
   for (const attName of atts) {
     const att = model.rawAttributes[attName];
-    if (!att) continue;
+    if (!att) throw Error(`'${attName}' attribute not found in model`);
 
     schema.properties[attName] = attributeSchema(att);
-    if (att.allowNull === false || options.alwaysRequired) {
-      schema.required.push(attName);
-    }
+    if (att.allowNull === false) schema.required.push(attName);
   }
 
   return schema;
 };
+
+module.exports.getJSONSchema = getJSONSchema;
+module.exports.allowNullType = allowNullType;
