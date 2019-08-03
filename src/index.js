@@ -149,16 +149,15 @@ function allowNullType(prop, allowNull = true) {
     prop.type.includes('null') :
     prop.type == 'null';
 
-  if (hasNull == allowNull) return;
-
-  // The property should already have a type of some sort
-  if (allowNull) {
-    // Convert to array
-    if (!Array.isArray(prop.type)) prop.type = [prop.type];
-    prop.type.push('null');
-  } else {
-    prop.type = prop.type.filter(t => t != 'null');
-    if (prop.type.length == 1) prop.type = prop.type[0];
+  if (hasNull != allowNull) {
+    if (allowNull) {
+      // Convert to array
+      if (!Array.isArray(prop.type)) prop.type = [prop.type];
+      prop.type.push('null');
+    } else {
+      prop.type = prop.type.filter(t => t != 'null');
+      if (prop.type.length == 1) prop.type = prop.type[0];
+    }
   }
 
   return prop;

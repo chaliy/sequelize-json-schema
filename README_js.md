@@ -1,3 +1,14 @@
+```javascript --run main --hide
+// `require('sequelize-json-schema')` --> `require('.')`
+runmd.onRequire = function(path) {
+  return path == 'sequelize-json-schema' ? '.' : path;
+}
+
+// Setup for the examples
+const Sequelize = require('Sequelize');
+const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+```
+
 # sequelize-json-schema
 
 [![NPM Version](https://img.shields.io/npm/v/sequelize-json-schema.svg)](https://npmjs.org/package/sequelize-json-schema)
@@ -11,34 +22,24 @@ Generate [JSON Schema](https://json-schema.org/) definitions from Sequelize mode
 npm install sequelize-json-schema
 ```
 
+Then in JS:
+```javascript --run main
+const {getJSONSchema} = require('sequelize-json-schema');
+```
+
 ## Example
 
-```
-const {getJSONSchema} = require('sequelize-json-schema');
+Generate a schema from a model:
+
+```javascript --run main
+const {DataTypes} = Sequelize;
 
 const MyModel = sequelize.define('simple', {
-  title: Sequelize.STRING,
-  description: {type: Sequelize.TEXT, allowNull: false}
+  title: {type: DataTypes.STRING, allowNull: false},
+  description: DataTypes.TEXT
 });
 
-const schema = getJSONSchema(MyModel);
-
-console.log(def);
-```
-
-Outputs:
-
-```
-{
-  type: 'object',
-  properties: {
-    id: {type: 'integer', format: 'int32'},
-    title: {type: ['string', 'null]},
-    description: {type: 'string'},
-    createdAt: {type: 'string', format: 'date-time'},
-    updatedAt: {type: 'string', format: 'date-time'}
-  }
-}
+const schema = getJSONSchema(MyModel); // RESULT
 ```
 
 ## API
@@ -55,18 +56,10 @@ takes precedence over the `include` option. I.e. if an attribute is both
 
 **Returns** {Object} - JSON Schema for the model
 
-Example incantations:
-```
-getJSONSchema(MyModel, {include: ['title', 'description']});
-getJSONSchema(MyModel, {exclude: ['id', 'createdAt', 'updatedAt']});
-```
-
-
 ### allowNullType(property_schema[, allowNull])
 
-Modify a JSON Schema property to add / remove the 'null' type.  This is used
-internally, but also provided as a convenience for callers wishing to transform
-schemas after-the-fact (a not-uncommon case).
+Helper method for adding or removing the 'null' type from a property, which some
+callers may find useful.
 
 * `{Object} property` - JSON schema `property` to modify
 * `{Array} [options.include]` - Attributes to include in the schema
@@ -74,10 +67,14 @@ schemas after-the-fact (a not-uncommon case).
 takes precedence over the `include` option. I.e. if an attribute is both
 `include`ed and `exclude`ed, it will be excluded from the schema.
 
-**Returns** undefined
+**Returns** `property` argument.
 
-Example incantations:
+Example:
+
+```javascript --run main
+const {allowNullType} = require('sequelize-json-schema');
+
+allowNullType(schema.properties.title);   // RESULT
+allowNullType(schema.properties.description, false);  // RESULT
 ```
-allowNullType(schema.properties.description);   // Adds 'null' to `types` field
-allowNullType(schema.properties.title, false);  // Remove's null from types
-```
+
