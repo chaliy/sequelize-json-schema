@@ -11,129 +11,6 @@ const STRING = {type: 'string'};
 
 const STRING_LENGTHS = {tiny: 255, medium: 16777215, long: 4294967295};
 
-// Per-type transformation logic
-const TRANSFORMS = {
-  // ABSTRACT: null,
-
-  ARRAY(att) {
-    return {
-      ...ARRAY,
-      // Sequelize requires att.type to be defined for ARRAYs
-      items: attributeSchema({type: att.type.type, allowNull: false})
-    };
-  },
-
-  BIGINT() {
-    return {...INTEGER, format: 'int64'};
-  },
-  BLOB() {
-    return {...STRING, contentEncoding: 'base64'};
-  },
-  BOOLEAN() {
-    return {...BOOLEAN};
-  },
-  CHAR() {
-    return {...STRING};
-  },
-  CIDR() {
-    return {...STRING};
-  },
-  CITEXT(att) {
-    return TRANSFORMS.STRING(att);
-  },
-  DATE() {
-    return {...STRING, format: 'date-time'};
-  },
-  DATEONLY() {
-    return {...STRING, format: 'date'};
-  },
-  DECIMAL() {
-    return {...NUMBER};
-  },
-
-  // This is the `key` for DOUBLE datatypes... ¯\_(ツ)_/¯
-  'DOUBLE PRECISION'() {
-    return {...NUMBER, format: 'double'};
-  },
-
-  ENUM(att) {
-    return {...STRING, enum: [...att.values]};
-  },
-
-  FLOAT() {
-    return {...NUMBER, format: 'float'};
-  },
-  // GEOGRAPHY: null,
-  // GEOMETRY: null,
-  // HSTORE: null,
-  INET() {
-    return {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]};
-  },
-  INTEGER() {
-    return {...INTEGER, format: 'int32'};
-  },
-  JSON() {
-    return {...ANY, type: [...ANY.type]};
-  },
-  JSONB() {
-    return {...ANY, type: [...ANY.type]};
-  },
-  MACADDR() {
-    return {...STRING};
-  },
-  MEDIUMINT() {
-    return {...INTEGER};
-  },
-  // NOW: null,
-  NUMBER() {
-    return {...NUMBER};
-  },
-  // RANGE: null,
-  REAL() {
-    return {...NUMBER};
-  },
-  SMALLINT() {
-    return {...INTEGER};
-  },
-
-  STRING(att) {
-    const schema = {...STRING};
-    let length = att.type.options && att.type.options.length;
-
-    // Resolve aliases
-    length = STRING_LENGTHS[length] || length;
-    if (length) schema.maxLength = length;
-
-    return schema;
-  },
-
-  TEXT(att) {
-    return TRANSFORMS.STRING(att);
-  },
-
-  TIME() {
-    return {...STRING, format: 'time'};
-  },
-
-  TINYINT() {
-    return {...NUMBER};
-  },
-  UUID() {
-    return {...STRING, format: 'uuid'};
-  },
-  UUIDV1() {
-    return {...STRING, format: 'uuid'};
-  },
-  UUIDV4() {
-    return {...STRING, format: 'uuid'};
-  },
-
-  VIRTUAL(att) {
-    // Use schema for the return type (if defined)
-    return attributeSchema({type: att.type && att.type.returnType});
-  },
-};
-
 /**
  * Add/remove `null` type from an property schema.  This will switch `type`
  * between an array and a single value, depending on the # of types.
@@ -163,17 +40,108 @@ function allowNullType(prop, allowNull = true) {
   return prop;
 }
 
+function _includeAttribute(opts, name) {
+  const include = (!opts.exclude || !opts.exclude.includes(name)) &&
+    (!opts.attributes || opts.attributes.length <= 0 || opts.attributes.includes(name));
+  return include;
+}
+
 /**
  * Generate JSON schema for a Sequelize attribute
  *
  * @param {Attribute} att Sequelize attribute
  * @returns {Object} property schema
  */
-function attributeSchema(att) {
-  const transform = att && att.type && TRANSFORMS[att.type.key];
-  let schema = transform ? transform(att) : transform;
+function getAttributeSchema(att) {
+  let schema;
 
-  // Use "any" schema for anything that's not recognized.  'Not entirely sure
+  let attType = att && att.type && att.type.key;
+
+  // NOTE: All known sequelize types should be mentioend in the switch blocks
+  // below, either under aliases or transforms (but may be commented out if not
+  // supported yet)
+
+  // Aliases
+  switch (attType) {
+    case 'TEXT':
+    case 'CITEXT':
+      attType = 'STRING';
+      break;
+
+    case 'VIRTUAL': {
+      // Use schema for the return type (if defined)
+      attType = att.type && att.type.returnType && att.type.returnType.key;
+      break;
+    }
+  }
+
+  // Transforms (to schema property)
+  switch (attType) {
+    // ABSTRACT - not supported
+
+    case 'ARRAY': {
+      schema = {
+        ...ARRAY,
+        // Sequelize requires att.type to be defined for ARRAYs
+        items: getAttributeSchema({type: att.type.type, allowNull: false})
+      };
+      break;
+    }
+
+    case 'BIGINT': { schema = {...INTEGER, format: 'int64'}; break; }
+    case 'BLOB': { schema = {...STRING, contentEncoding: 'base64'}; break; }
+    case 'BOOLEAN': { schema = {...BOOLEAN}; break; }
+    case 'CHAR': { schema = {...STRING}; break; }
+    case 'CIDR': { schema = {...STRING}; break; }
+
+    case 'DATE': { schema = {...STRING, format: 'date-time'}; break; }
+    case 'DATEONLY': { schema = {...STRING, format: 'date'}; break; }
+    case 'DECIMAL': { schema = {...NUMBER}; break; }
+
+    // This is the `key` for DOUBLE datatypes... ¯\_(ツ)_/¯
+    case 'DOUBLE PRECISION': { schema = {...NUMBER, format: 'double'}; break; }
+    case 'ENUM': { schema = {...STRING, enum: [...att.values]}; break; }
+    case 'FLOAT': { schema = {...NUMBER, format: 'float'}; break; }
+    // GEOGRAPHY - needs definition
+    // GEOMETRY - needs definition
+    // HSTORE - needs definition
+    case 'INET': {schema = {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]}; break; }
+
+    case 'INTEGER': { schema = {...INTEGER, format: 'int32'}; break; }
+    case 'JSON': { schema = {...ANY, type: [...ANY.type]}; break; }
+    case 'JSONB': { schema = {...ANY, type: [...ANY.type]}; break; }
+    case 'MACADDR': { schema = {...STRING}; break; }
+    case 'MEDIUMINT': { schema = {...INTEGER}; break; }
+    // NOW: null,
+    case 'NUMBER': { schema = {...NUMBER}; break; }
+    // RANGE: null,
+    case 'REAL': { schema = {...NUMBER}; break; }
+    case 'SMALLINT': { schema = {...INTEGER}; break; }
+
+    case 'STRING': {
+      schema = {...STRING};
+      let length = att.type.options && att.type.options.length;
+
+      // Resolve aliases
+      length = STRING_LENGTHS[length] || length;
+      if (length) schema.maxLength = length;
+      break;
+    }
+
+    case 'TIME': { schema = {...STRING, format: 'time'}; break; }
+    case 'TINYINT': { schema = {...NUMBER}; break; }
+    case 'UUID': { schema = {...STRING, format: 'uuid'}; break; }
+    case 'UUIDV1': { schema = {...STRING, format: 'uuid'}; break; }
+    case 'UUIDV4': { schema = {...STRING, format: 'uuid'}; break; }
+
+    case 'VIRTUAL': {
+      // Use schema for the return type (if defined)
+      schema = getAttributeSchema({...att, type: att.type && att.type.returnType});
+      break;
+    }
+  };
+
+  // Use ANY for anything that's not recognized.  'Not entirely sure
   // this is the right thing to do.  File an issue if you think it should behave
   // differently.
   if (!schema) schema = {...ANY, type: [...ANY.type]};
@@ -189,19 +157,17 @@ function attributeSchema(att) {
  *
  * @param {Model} model Sequelize.Model to schema-ify
  * @param {Object} options Optional options
- * @param {Array} options.include Attributes to include in schema
+ * @param {Array} options.attributes Attributes to include in schema
  * @param {Array} options.exclude  Attributes to exclude from schema (overrides
- * `include`)
+ * `attributes`)
  */
-function getJSONSchema(model, options = {}) {
+function getModelSchema(model, options = {}) {
   const schema = {...OBJECT, properties: {}, required: []};
+  const {useRefs = true} = options;
 
   const {NODE_ENV} = process.env;
 
   // Emit warnings about legacy options
-  if (options.attributes) {
-    throw Error('`attributes` option is deprecated (Use `include` instead)');
-  }
   if (options.private) {
     throw Error('`private` option is deprecated (Use `exclude` instead)');
   }
@@ -212,21 +178,79 @@ function getJSONSchema(model, options = {}) {
     throw Error('`allowNull` option is no longer supported (Use sjs.allowNullType(property[, allowNull]) to add/remove null types in the returned schema)');
   }
 
+  // Define propertiesk
+  for (const attName of Object.keys(model.rawAttributes)) {
+    if (!_includeAttribute(options, attName)) continue;
 
-  const exclude = options.exclude || [];
-  let atts = options.include || Object.keys(model.rawAttributes);
-  atts = atts.filter(k => !exclude.includes(k));
-
-  for (const attName of atts) {
     const att = model.rawAttributes[attName];
+    if (att.references && useRefs !== false) {
+      // Association references will get picked up in the next step, so don't
+      // treat them as properties here
+      continue;
+    }
     if (!att) throw Error(`'${attName}' attribute not found in model`);
 
-    schema.properties[attName] = attributeSchema(att);
+    schema.properties[attName] = getAttributeSchema(att);
     if (att.allowNull === false) schema.required.push(attName);
   }
+
+  // Define associations(?)
+  if (useRefs !== false) {
+    for (const [assName, ass] of Object.entries(model.associations)) {
+      const {associationType, target, associationAccessor} = ass;
+
+      if (!_includeAttribute(options, associationAccessor)) continue;
+
+      let assSchema;
+      switch (associationType) {
+        case 'HasOne':
+        case 'BelongsTo':
+          assSchema = {'$ref': `#/definitions/${target.name}`};
+          break;
+        case 'HasMany':
+        case 'BelongsToMany':
+          assSchema = {
+            type: 'array',
+            items: {'$ref': `#/definitions/${target.name}`}
+          };
+          break;
+        default:
+          debugger;
+          throw Error(`Unrecognized association type: "${assType}"`);
+      }
+
+      schema.properties[associationAccessor] = assSchema;
+    }
+  }
+
+  if (!schema.required.length) delete schema.required;
 
   return schema;
 };
 
-module.exports.getJSONSchema = getJSONSchema;
-module.exports.allowNullType = allowNullType;
+function getSequelizeSchema(seq, options = {}) {
+  const {modelOptions = {}} = options;
+  // Per https://json-schema.org/understanding-json-schema/structuring.htmlk
+  const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema#',
+    ...OBJECT,
+    definitions: {},
+  }
+
+  // Definitions
+  for (const [name, model] of Object.entries(seq.models)) {
+    const mopts = {exclude: [], attributes: [], ...modelOptions[name]};
+    if (options.attributes) mopts.attributes.push(...options.attributes);
+    if (options.exclude) mopts.exclude.push(...options.exclude);
+    const modelSchema = getModelSchema(model, mopts);
+    schema.definitions[model.name] = modelSchema;
+  }
+
+  return schema;
+}
+
+module.exports = {
+  getAttributeSchema,
+  getModelSchema,
+  getSequelizeSchema,
+}

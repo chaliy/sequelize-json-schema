@@ -1,141 +1,11 @@
 const Sequelize = require('sequelize');
 const {deepEqual} = require('assert');
-const {getJSONSchema} = require('../src');
+const {getSequelizeSchema, getModelSchema, getAttributeSchema} = require('../src');
 
 const {DataTypes} = Sequelize;
-const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
 
-// Hack define() to remove extraneous fields (id, timestamps) while testing
-sequelize._define = sequelize.define;
-sequelize.define = function(name, columns, options = {}) {
-  options.timestamps = false;
-  const model = this._define(name, columns, options);
-  model.removeAttribute('id');
-  return model;
-};
-
-describe('sequelize-json-schema', () => {
-  it('empty model', () => {
-    const model = sequelize.define('_model', {});
-
-    deepEqual(getJSONSchema(model), {type: 'object', properties: {}, required: []});
-  });
-
-  it('basic model', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-    });
-
-    deepEqual(
-      getJSONSchema(model),
-      {
-        type: 'object',
-        properties:
-        {
-          s1: {type: ['string', 'null']},
-        },
-        required: []
-      }
-    );
-  });
-
-  it('allowNull:true => allows null', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-      s2: {allowNull: true, type: DataTypes.STRING},
-    });
-
-    deepEqual(getJSONSchema(model), {
-      type: 'object',
-      properties: {
-        s1: {type: ['string', 'null']},
-        s2: {type: ['string', 'null']},
-      },
-      required: [],
-    });
-  });
-
-  it('allowNull:false => omits null, requires property', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-      s2: {allowNull: false, type: DataTypes.STRING},
-      s3: DataTypes.STRING
-    });
-
-    deepEqual(getJSONSchema(model), {
-      type: 'object',
-      properties: {
-        s1: {type: ['string', 'null']},
-        s2: {type: 'string'},
-        s3: {type: ['string', 'null']},
-      },
-      required: ['s2'],
-    });
-  });
-
-  it('options.include', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-      s2: DataTypes.STRING,
-      s3: DataTypes.STRING
-    });
-
-    deepEqual(
-      getJSONSchema(model, {include: ['s1', 's2']}),
-      {
-        type: 'object',
-        properties: {
-          s1: {type: ['string', 'null']},
-          s2: {type: ['string', 'null']},
-        },
-        required: [],
-      }
-    );
-  });
-
-  it('options.exclude', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-      s2: DataTypes.STRING,
-    });
-
-    deepEqual(
-      getJSONSchema(model, {exclude: ['s2']}),
-      {
-        type: 'object',
-        properties: {
-          s1: {type: ['string', 'null']},
-        },
-        required: []
-      }
-    );
-  });
-
-  it('options.include <=> options.exclude interaction', () => {
-    const model = sequelize.define('_model', {
-      s1: DataTypes.STRING,
-      s2: DataTypes.STRING,
-      s3: DataTypes.STRING
-    });
-
-    deepEqual(
-      getJSONSchema(model, {
-        include: ['s1', 's2'],
-        exclude: ['s2']
-      }),
-      {
-        type: 'object',
-        properties: {
-          s1: {type: ['string', 'null']}
-        },
-        required: [],
-      }
-    );
-  });
-
-  //
-  // Test various types
-  //
+describe(`getAttributeSchema()`, () => {
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
 
   /**
    * Utility for testing the schema generated for a given DataTypes type.
@@ -154,7 +24,7 @@ describe('sequelize-json-schema', () => {
    * @param {Object} schema Expected schema
    */
   function _testType(name, ...args) {
-    const schema = args.pop();
+    const expected = args.pop();
 
     let atts = DataTypes[name];
     atts = args.length ? atts(...args) : atts;
@@ -167,7 +37,11 @@ describe('sequelize-json-schema', () => {
       const model = sequelize.define('_model', {
         [attName]: {type: atts, allowNull: false}
       });
-      deepEqual(getJSONSchema(model).properties, {[attName]: schema});
+
+      // Get schema
+      const schema = getAttributeSchema(model.rawAttributes[attName]);
+
+      deepEqual(schema, expected);
     });
   }
 
@@ -201,4 +75,249 @@ describe('sequelize-json-schema', () => {
   _testType('TEXT', 'long', {type: 'string', maxLength: 4294967295});
   _testType('TEXT', 'medium', {type: 'string', maxLength: 16777215});
   _testType('TEXT', 'tiny', {type: 'string', maxLength: 255});
+});
+
+describe(`getModelSchema()`, () => {
+  const OPTIONS = {exclude: ['createdAt', 'updatedAt', 'id']};
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+
+  it('empty model', () => {
+    const model = sequelize.define('_model', {});
+
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {}
+    });
+  });
+
+  it('basic model', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+    });
+
+    deepEqual(
+      getModelSchema(model, OPTIONS),
+      {
+        type: 'object',
+        properties:
+        {
+          s1: {type: ['string', 'null']},
+        },
+      }
+    );
+  });
+
+  it('allowNull:true => allows null', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: {allowNull: true, type: DataTypes.STRING},
+    });
+
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: ['string', 'null']},
+      },
+    });
+  });
+
+  it('allowNull:false => omits null, requires property', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: {allowNull: false, type: DataTypes.STRING},
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: 'string'},
+        s3: {type: ['string', 'null']},
+      },
+      required: ['s2'],
+    });
+  });
+
+  it('options.attributes', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(
+      getModelSchema(model, {attributes: ['s1', 's2']}),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']},
+          s2: {type: ['string', 'null']},
+        },
+      }
+    );
+  });
+
+  it('options.exclude', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+    });
+
+    deepEqual(
+      getModelSchema(model, {exclude: [...OPTIONS.exclude, 's2']}),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']},
+        },
+      }
+    );
+  });
+
+  it('options.attributes <=> options.exclude interaction', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(
+      getModelSchema(model, {
+        attributes: ['s1', 's2'],
+        exclude: ['s2']
+      }),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']}
+        },
+      }
+    );
+  });
+});
+
+describe(`getSequelizeSchema`, () => {
+  const OPTIONS = {exclude: ['createdAt', 'updatedAt']};
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+
+  it('hasOne', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.hasOne(Bar);
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bar: {'$ref': '#/definitions/Bar'}
+            },
+            required: ['id'],
+          },
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          }
+        },
+    });
+  });
+
+  it('belongsTo', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.belongsTo(Bar);
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bar: {'$ref': '#/definitions/Bar'}
+            },
+            required: ['id'],
+          },
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          }
+        },
+    });
+  });
+
+  it('hasMany', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.hasMany(Bar);
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bars: {type: 'array', items: {'$ref': '#/definitions/Bar'}}
+            },
+            required: ['id'],
+          },
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          }
+        },
+    });
+  });
+
+  it('belongsToMany', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.belongsToMany(Bar, {through: 'join_table'});
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bars: {type: 'array', items: {'$ref': '#/definitions/Bar'}}
+            },
+            required: ['id'],
+          },
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          },
+
+          // This is an artifact of having to declare a `through` table, above,
+          // for the belongsToMany association
+          join_table: {type: 'object', properties: {}},
+        },
+    });
+  });
 });

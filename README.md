@@ -7,7 +7,18 @@
 [![NPM Version](https://img.shields.io/npm/v/sequelize-json-schema.svg)](https://npmjs.org/package/sequelize-json-schema)
 [![CircleCI](https://circleci.com/gh/chaliy/sequelize-json-schema.svg?style=svg)](https://circleci.com/gh/chaliy/sequelize-json-schema)
 
-Generate [JSON Schema](https://json-schema.org/) definitions from Sequelize models
+Generate [JSON Schema](https://json-schema.org/) structures from Sequelize
+instances, models, and model attributes
+
+This API allows you to generate JSON schemas at three levels of granularity:
+
+|   |   |
+|---|---|
+| `getSequelizeSchema()` | Generate a full, JSON-schema description of your database (all models, attributes, and associations) |
+| `getModelSchema()` | Generate the schema `definitions` entry for a specific model (all attributes) |
+| `getAttributeSchema()` | Generate the `properties` entry for a specific attribute |
+
+See API documentation below for details and examples.
 
 ## Installation
 
@@ -15,73 +26,184 @@ Generate [JSON Schema](https://json-schema.org/) definitions from Sequelize mode
 npm install sequelize-json-schema
 ```
 
-Then in JS:
-```javascript
-const {getJSONSchema} = require('sequelize-json-schema');
-
-```
-
-## Example
-
-Generate a schema from a model:
-
-```javascript
-const {DataTypes} = Sequelize;
-
-const MyModel = sequelize.define('simple', {
-  title: {type: DataTypes.STRING, allowNull: false},
-  description: DataTypes.TEXT
-});
-
-const schema = getJSONSchema(MyModel); // ⇨ 
-  // { type: 'object',
-  //   properties: 
-  //    { id: { type: 'integer', format: 'int32' },
-  //      title: { type: 'string' },
-  //      description: { type: [ 'string', 'null' ] },
-  //      createdAt: { type: 'string', format: 'date-time' },
-  //      updatedAt: { type: 'string', format: 'date-time' } },
-  //   required: [ 'id', 'title', 'createdAt', 'updatedAt' ] }
-
-```
-
 ## API
 
-### getJSONSchema(model[, options])
-
-Generate a JSON Schema from a Sequelize model
-
-* `{Sequelize.Model} model` - Model to generate JSON schema from
-* `{Array} [options.include]` - Attributes to include in the schema
-* `{Array} [options.exclude]` - Attributes to exclude from the schema.  This
-takes precedence over the `include` option. I.e. if an attribute is both
-`include`ed and `exclude`ed, it will be excluded from the schema.
-
-**Returns** {Object} - JSON Schema for the model
-
-### allowNullType(property_schema[, allowNull])
-
-Helper method for adding or removing the 'null' type from a property, which some
-callers may find useful.
-
-* `{Object} property` - JSON schema `property` to modify
-* `{Array} [options.include]` - Attributes to include in the schema
-* `{Array} [options.exclude]` - Attributes to exclude from the schema.  This
-takes precedence over the `include` option. I.e. if an attribute is both
-`include`ed and `exclude`ed, it will be excluded from the schema.
-
-**Returns** `property` argument.
-
-Example:
-
+The examples below are run in the context of this setup code:
 ```javascript
-const {allowNullType} = require('sequelize-json-schema');
+// Import this module
+const sjs = require('sequelize-json-schema');
 
-allowNullType(schema.properties.title);   // ⇨ { type: [ 'string', 'null' ] }
-allowNullType(schema.properties.description, false);  // ⇨ { type: 'string' }
+// Import Sequelize thingz
+const Sequelize = require('Sequelize');
+const {DataTypes} = Sequelize;
+
+// Create a sequelize instance
+const sequelize = new Sequelize('database', 'username', 'password', {dialect: 'sqlite'});
 
 ```
 
+### getSequelizeSchema(sequelize[, options])
+
+|   |   |
+|---|---|
+| `sequelize` | `Sequelize` A Sequelize instance |
+| `options.useRefs` | model option default (see `getModelSchema()`) |
+| `options.attributes` | model option default (see `getModelSchema()`) |
+| `options.exclude` | model option default (see `getModelSchema()`) |
+| `modelOptions` | `Object` Map of model name to model-specific options |
+|  *(returns)* | `Object` JSON Schema object |
+
+#### Example
+Schema for simple one-model schema):
+```javascript
+const Person = sequelize.define('Person', {name: DataTypes.STRING});
+
+console.log(sjs.getSequelizeSchema(sequelize));
+
+⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒   type: 'object',
+⇒   definitions: 
+⇒    { Person: 
+⇒       { type: 'object',
+⇒         properties: 
+⇒          { id: { type: 'integer', format: 'int32' },
+⇒            name: { type: [ 'string', 'null' ] },
+⇒            createdAt: { type: 'string', format: 'date-time' },
+⇒            updatedAt: { type: 'string', format: 'date-time' } },
+⇒         required: [ 'id', 'createdAt', 'updatedAt' ] } } }
+```
+
+... continuing on, use `options` to exclude a few properties:
+```javascript
+const options = {exclude: ['id', 'createdAt', 'updatedAt']};
+
+console.log(sjs.getSequelizeSchema(sequelize, options));
+
+⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒   type: 'object',
+⇒   definitions: 
+⇒    { Person: 
+⇒       { type: 'object',
+⇒         properties: { name: { type: [ 'string', 'null' ] } } } } }
+```
+
+... continuing on, add another model and some associations:
+
+```javascript
+const Address = sequelize.define('Address', {
+  street: DataTypes.STRING('tiny'),
+  city: DataTypes.STRING,
+  state: {type: DataTypes.STRING(2)},
+  zipcode: DataTypes.NUMBER,
+});
+
+Person.hasOne(Address);
+Address.hasMany(Person);
+
+console.log(sjs.getSequelizeSchema(sequelize, options));
+
+⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒   type: 'object',
+⇒   definitions: 
+⇒    { Person: 
+⇒       { type: 'object',
+⇒         properties: 
+⇒          { name: { type: [ 'string', 'null' ] },
+⇒            Address: { '$ref': '#/definitions/Address' } } },
+⇒      Address: 
+⇒       { type: 'object',
+⇒         properties: 
+⇒          { street: { type: [ 'string', 'null' ], maxLength: 255 },
+⇒            city: { type: [ 'string', 'null' ] },
+⇒            state: { type: [ 'string', 'null' ], maxLength: 2 },
+⇒            zipcode: { type: [ 'number', 'null' ] },
+⇒            People: { type: 'array', items: { '$ref': '#/definitions/Person' } } } } } }
+```
+
+... continuing (customizing with `options` and `modelOptions`):
+
+```javascript
+console.log(sjs.getSequelizeSchema(sequelize, {
+  exclude: ['createdAt', 'updatedAt'],
+  modelOptions: {
+    Person: {exclude: ['id']},
+    Address: {attributes: ['id']},
+  }
+}));
+
+⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒   type: 'object',
+⇒   definitions: 
+⇒    { Person: 
+⇒       { type: 'object',
+⇒         properties: 
+⇒          { name: { type: [ 'string', 'null' ] },
+⇒            Address: { '$ref': '#/definitions/Address' } } },
+⇒      Address: 
+⇒       { type: 'object',
+⇒         properties: { id: { type: 'integer', format: 'int32' } },
+⇒         required: [ 'id' ] } } }
+```
+
+### getModelSchema(model[, options])
+
+|   |   |
+|---|---|
+| `model` | `Sequelize.Model` | Sequelize model instance |
+| `options` | `Object` |
+| `options.useRefs` | `Boolean = true` Determines how associations are described in the schema.  If true, `model.associations` are described as `$ref`s to the appropriate entry in the schema `definitions`.  If false, just describes the name and type of each foreign key attribute. |
+| `options.attributes` | `Array` Attributes to include in the schema |
+| `options.exclude` | `Array` Attributes to exclude from the schema |
+|  *(returns)* | `Object` JSON Schema definition for the model|
+
+#### Example
+
+... continuing `getSequelizeSchema()` example, above:
+
+```javascript
+console.log(sjs.getModelSchema(Person));
+
+⇒ { type: 'object',
+⇒   properties: 
+⇒    { id: { type: 'integer', format: 'int32' },
+⇒      name: { type: [ 'string', 'null' ] },
+⇒      createdAt: { type: 'string', format: 'date-time' },
+⇒      updatedAt: { type: 'string', format: 'date-time' },
+⇒      Address: { '$ref': '#/definitions/Address' } },
+⇒   required: [ 'id', 'createdAt', 'updatedAt' ] }
+```
+
+... continuing (useRefs = false to treat associations as plain attributes):
+
+```javascript
+console.log(sjs.getModelSchema(Person, {useRefs: false}));
+
+⇒ { type: 'object',
+⇒   properties: 
+⇒    { id: { type: 'integer', format: 'int32' },
+⇒      name: { type: [ 'string', 'null' ] },
+⇒      createdAt: { type: 'string', format: 'date-time' },
+⇒      updatedAt: { type: 'string', format: 'date-time' },
+⇒      AddressId: { type: [ 'integer', 'null' ], format: 'int32' } },
+⇒   required: [ 'id', 'createdAt', 'updatedAt' ] }
+```
+
+### getAttributeSchema(attribute)
+
+|   |   |
+|---|---|
+| `attribute` | `Sequelize.Model attribute` |  |
+|  *(returns)* | `Object` JSON Schema property for the attribute|
+
+#### Example
+
+... continuing `getModelSchema()` example, above:
+
+```javascript
+console.log(sjs.getAttributeSchema(Person.rawAttributes.name));
+
+⇒ { type: [ 'string', 'null' ] }
+```
 
 ----
 Markdown generated from [README_js.md](README_js.md) by [![RunMD Logo](http://i.imgur.com/h0FVyzU.png)](https://github.com/broofa/runmd)
