@@ -8,13 +8,13 @@
 [![CircleCI](https://circleci.com/gh/chaliy/sequelize-json-schema.svg?style=svg)](https://circleci.com/gh/chaliy/sequelize-json-schema)
 
 Generate [JSON Schema](https://json-schema.org/) structures from Sequelize
-instances, models, and model attributes
+instances, models, and model attributes.
 
-This API allows you to generate JSON schemas at three levels of granularity:
+Schemas may be generated at three levels of granularity:
 
 |   |   |
 |---|---|
-| `getSequelizeSchema()` | Generate a full, JSON-schema description of your database (all models, attributes, and associations) |
+| `getSequelizeSchema()` | Generate a full description of your database (all models, attributes, and associations) |
 | `getModelSchema()` | Generate the schema `definitions` entry for a specific model (all attributes) |
 | `getAttributeSchema()` | Generate the `properties` entry for a specific attribute |
 
@@ -26,9 +26,18 @@ See API documentation below for details and examples.
 npm install sequelize-json-schema
 ```
 
+## Migrating v1 &rarr; v2
+
+The version 1 API of this module is available as `getModelSchema()`, with the following changes:
+- `private` option has been removed.  Use `exclude` instead.
+- `alwaysRequired` option has been removed.  Schemas should be manually amended
+if needed using `schema.required.push(...Object.keys(schema.properties))`.
+- `allowNull` option has been removed.  (Schema reflects the `allowNull`
+    property of individual attributes).
+
 ## API
 
-The examples below are run in the context of this setup code:
+Note: API examples below assume the following setup code:
 ```javascript
 // Import this module
 const sjs = require('sequelize-json-schema');
@@ -47,30 +56,35 @@ const sequelize = new Sequelize('database', 'username', 'password', {dialect: 's
 |   |   |
 |---|---|
 | `sequelize` | `Sequelize` A Sequelize instance |
-| `options.useRefs` | model option default (see `getModelSchema()`) |
-| `options.attributes` | model option default (see `getModelSchema()`) |
-| `options.exclude` | model option default (see `getModelSchema()`) |
-| `modelOptions` | `Object` Map of model name to model-specific options |
+| `options.useRefs` | Default for `useRefs` model option |
+| `options.attributes` | Default for `attributes` model option |
+| `options.exclude` | Default for `exclude` model option |
+| `options.modelOptions` | Model-specific options |
 |  *(returns)* | `Object` JSON Schema object |
 
 #### Example
-Schema for simple one-model schema):
+Schema for simple one-model schema:
 ```javascript
 const Person = sequelize.define('Person', {name: DataTypes.STRING});
 
 console.log(sjs.getSequelizeSchema(sequelize));
 
-⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒ {
+⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
 ⇒   type: 'object',
-⇒   definitions: 
-⇒    { Person: 
-⇒       { type: 'object',
-⇒         properties: 
-⇒          { id: { type: 'integer', format: 'int32' },
-⇒            name: { type: [ 'string', 'null' ] },
-⇒            createdAt: { type: 'string', format: 'date-time' },
-⇒            updatedAt: { type: 'string', format: 'date-time' } },
-⇒         required: [ 'id', 'createdAt', 'updatedAt' ] } } }
+⇒   definitions: {
+⇒     Person: {
+⇒       type: 'object',
+⇒       properties: {
+⇒         id: { type: 'integer', format: 'int32' },
+⇒         name: { type: [ 'string', 'null' ] },
+⇒         createdAt: { type: 'string', format: 'date-time' },
+⇒         updatedAt: { type: 'string', format: 'date-time' }
+⇒       },
+⇒       required: [ 'id', 'createdAt', 'updatedAt' ]
+⇒     }
+⇒   }
+⇒ }
 ```
 
 ... continuing on, use `options` to exclude a few properties:
@@ -79,12 +93,16 @@ const options = {exclude: ['id', 'createdAt', 'updatedAt']};
 
 console.log(sjs.getSequelizeSchema(sequelize, options));
 
-⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒ {
+⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
 ⇒   type: 'object',
-⇒   definitions: 
-⇒    { Person: 
-⇒       { type: 'object',
-⇒         properties: { name: { type: [ 'string', 'null' ] } } } } }
+⇒   definitions: {
+⇒     Person: {
+⇒       type: 'object',
+⇒       properties: { name: { type: [ 'string', 'null' ] } }
+⇒     }
+⇒   }
+⇒ }
 ```
 
 ... continuing on, add another model and some associations:
@@ -102,22 +120,29 @@ Address.hasMany(Person);
 
 console.log(sjs.getSequelizeSchema(sequelize, options));
 
-⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒ {
+⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
 ⇒   type: 'object',
-⇒   definitions: 
-⇒    { Person: 
-⇒       { type: 'object',
-⇒         properties: 
-⇒          { name: { type: [ 'string', 'null' ] },
-⇒            Address: { '$ref': '#/definitions/Address' } } },
-⇒      Address: 
-⇒       { type: 'object',
-⇒         properties: 
-⇒          { street: { type: [ 'string', 'null' ], maxLength: 255 },
-⇒            city: { type: [ 'string', 'null' ] },
-⇒            state: { type: [ 'string', 'null' ], maxLength: 2 },
-⇒            zipcode: { type: [ 'number', 'null' ] },
-⇒            People: { type: 'array', items: { '$ref': '#/definitions/Person' } } } } } }
+⇒   definitions: {
+⇒     Person: {
+⇒       type: 'object',
+⇒       properties: {
+⇒         name: { type: [ 'string', 'null' ] },
+⇒         Address: { '$ref': '#/definitions/Address' }
+⇒       }
+⇒     },
+⇒     Address: {
+⇒       type: 'object',
+⇒       properties: {
+⇒         street: { type: [ 'string', 'null' ], maxLength: 255 },
+⇒         city: { type: [ 'string', 'null' ] },
+⇒         state: { type: [ 'string', 'null' ], maxLength: 2 },
+⇒         zipcode: { type: [ 'number', 'null' ] },
+⇒         People: { type: 'array', items: { '$ref': '#/definitions/Person' } }
+⇒       }
+⇒     }
+⇒   }
+⇒ }
 ```
 
 ... continuing (customizing with `options` and `modelOptions`):
@@ -131,18 +156,24 @@ console.log(sjs.getSequelizeSchema(sequelize, {
   }
 }));
 
-⇒ { '$schema': 'http://json-schema.org/draft-07/schema#',
+⇒ {
+⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
 ⇒   type: 'object',
-⇒   definitions: 
-⇒    { Person: 
-⇒       { type: 'object',
-⇒         properties: 
-⇒          { name: { type: [ 'string', 'null' ] },
-⇒            Address: { '$ref': '#/definitions/Address' } } },
-⇒      Address: 
-⇒       { type: 'object',
-⇒         properties: { id: { type: 'integer', format: 'int32' } },
-⇒         required: [ 'id' ] } } }
+⇒   definitions: {
+⇒     Person: {
+⇒       type: 'object',
+⇒       properties: {
+⇒         name: { type: [ 'string', 'null' ] },
+⇒         Address: { '$ref': '#/definitions/Address' }
+⇒       }
+⇒     },
+⇒     Address: {
+⇒       type: 'object',
+⇒       properties: { id: { type: 'integer', format: 'int32' } },
+⇒       required: [ 'id' ]
+⇒     }
+⇒   }
+⇒ }
 ```
 
 ### getModelSchema(model[, options])
@@ -151,10 +182,10 @@ console.log(sjs.getSequelizeSchema(sequelize, {
 |---|---|
 | `model` | `Sequelize.Model` | Sequelize model instance |
 | `options` | `Object` |
-| `options.useRefs` | `Boolean = true` Determines how associations are described in the schema.  If true, `model.associations` are described as `$ref`s to the appropriate entry in the schema `definitions`.  If false, just describes the name and type of each foreign key attribute. |
+| `options.useRefs` | `Boolean = true` Determines how associations are described in the schema.  If true, `model.associations` are described as `$ref`s to the appropriate entry in the schema `definitions`.  If false, assiciations are described as plain attributes |
 | `options.attributes` | `Array` Attributes to include in the schema |
 | `options.exclude` | `Array` Attributes to exclude from the schema |
-|  *(returns)* | `Object` JSON Schema definition for the model|
+|  *(return)* | `Object` JSON Schema definition for the model|
 
 #### Example
 
@@ -163,14 +194,17 @@ console.log(sjs.getSequelizeSchema(sequelize, {
 ```javascript
 console.log(sjs.getModelSchema(Person));
 
-⇒ { type: 'object',
-⇒   properties: 
-⇒    { id: { type: 'integer', format: 'int32' },
-⇒      name: { type: [ 'string', 'null' ] },
-⇒      createdAt: { type: 'string', format: 'date-time' },
-⇒      updatedAt: { type: 'string', format: 'date-time' },
-⇒      Address: { '$ref': '#/definitions/Address' } },
-⇒   required: [ 'id', 'createdAt', 'updatedAt' ] }
+⇒ {
+⇒   type: 'object',
+⇒   properties: {
+⇒     id: { type: 'integer', format: 'int32' },
+⇒     name: { type: [ 'string', 'null' ] },
+⇒     createdAt: { type: 'string', format: 'date-time' },
+⇒     updatedAt: { type: 'string', format: 'date-time' },
+⇒     Address: { '$ref': '#/definitions/Address' }
+⇒   },
+⇒   required: [ 'id', 'createdAt', 'updatedAt' ]
+⇒ }
 ```
 
 ... continuing (useRefs = false to treat associations as plain attributes):
@@ -178,14 +212,17 @@ console.log(sjs.getModelSchema(Person));
 ```javascript
 console.log(sjs.getModelSchema(Person, {useRefs: false}));
 
-⇒ { type: 'object',
-⇒   properties: 
-⇒    { id: { type: 'integer', format: 'int32' },
-⇒      name: { type: [ 'string', 'null' ] },
-⇒      createdAt: { type: 'string', format: 'date-time' },
-⇒      updatedAt: { type: 'string', format: 'date-time' },
-⇒      AddressId: { type: [ 'integer', 'null' ], format: 'int32' } },
-⇒   required: [ 'id', 'createdAt', 'updatedAt' ] }
+⇒ {
+⇒   type: 'object',
+⇒   properties: {
+⇒     id: { type: 'integer', format: 'int32' },
+⇒     name: { type: [ 'string', 'null' ] },
+⇒     createdAt: { type: 'string', format: 'date-time' },
+⇒     updatedAt: { type: 'string', format: 'date-time' },
+⇒     AddressId: { type: [ 'integer', 'null' ], format: 'int32' }
+⇒   },
+⇒   required: [ 'id', 'createdAt', 'updatedAt' ]
+⇒ }
 ```
 
 ### getAttributeSchema(attribute)
@@ -204,6 +241,7 @@ console.log(sjs.getAttributeSchema(Person.rawAttributes.name));
 
 ⇒ { type: [ 'string', 'null' ] }
 ```
+
 
 ----
 Markdown generated from [README_js.md](README_js.md) by [![RunMD Logo](http://i.imgur.com/h0FVyzU.png)](https://github.com/broofa/runmd)
