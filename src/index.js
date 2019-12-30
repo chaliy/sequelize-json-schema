@@ -69,9 +69,7 @@ function getAttributeSchema(att) {
       break;
 
     case 'VIRTUAL': {
-      // Use schema for the return type (if defined)
-      attType = att.type && att.type.returnType && att.type.returnType.key;
-      break;
+      return getAttributeSchema({...att, type: att.type.returnType});
     }
   }
 
@@ -133,12 +131,6 @@ function getAttributeSchema(att) {
     case 'UUID': { schema = {...STRING, format: 'uuid'}; break; }
     case 'UUIDV1': { schema = {...STRING, format: 'uuid'}; break; }
     case 'UUIDV4': { schema = {...STRING, format: 'uuid'}; break; }
-
-    case 'VIRTUAL': {
-      // Use schema for the return type (if defined)
-      schema = getAttributeSchema({...att, type: att.type && att.type.returnType});
-      break;
-    }
   }
 
   // Use ANY for anything that's not recognized.  'Not entirely sure
