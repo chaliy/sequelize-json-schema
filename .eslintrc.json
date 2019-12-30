@@ -1,18 +1,14 @@
 {
   "root": true,
   "env": {
-    "browser": true,
     "commonjs": true,
     "es6": true,
     "node": true,
     "mocha": true
   },
-  "globals": {
-    "msCrypto": true
-  },
+  "globals": {},
   "parserOptions": {
-    "sourceType": "module",
-    "ecmaVersion": 2018
+    "ecmaVersion": 2019
   },
   "extends": ["eslint:recommended"],
   "rules": {
