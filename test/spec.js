@@ -1,187 +1,323 @@
-'use strict';
+const Sequelize = require('sequelize');
+const {deepEqual} = require('assert');
+const {getSequelizeSchema, getModelSchema, getAttributeSchema} = require('../src');
 
-let expect = require('chai').expect;
+const {DataTypes} = Sequelize;
 
-let Sequelize = require('sequelize');
-let definition = require('../src');
+describe(`getAttributeSchema()`, () => {
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
 
-describe('sequelize-json-schema', () => {
+  /**
+   * Utility for testing the schema generated for a given DataTypes type.
+   *
+   * Takes the name of DataType, optional arguments to pass to that type, and
+   * the expected schema and performs the test.  E.g.
+   * ```
+   * _testType('ENUM', 'a', 'b', {type: ['string', 'null'], values: ['a', 'b']});
+   * ```
+   * ...
+   * will test the schema created for a `DataTypes.ENUM('a', 'b')` DataTypes
+   * attribute
+   *
+   * @param {String} name DataType name
+   * @param {...args} args to pass to DataType constructor
+   * @param {Object} schema Expected schema
+   */
+  function _testType(name, ...args) {
+    const expected = args.pop();
 
-  let sequelize = new Sequelize('database', 'username', 'password', {
-    dialect: 'sqlite'
+    let atts = DataTypes[name];
+    atts = args.length ? atts(...args) : atts;
+
+    const testName = `${name}${args.length ? `(${args.map(String).join()})` : '' } schema`;
+    const attName = `${name.toLowerCase()}Attribute`;
+
+    it(testName, () => {
+      // `allowNull: false` here types don't have 'null' everywhere
+      const model = sequelize.define('_model', {
+        [attName]: {type: atts, allowNull: false}
+      });
+
+      // Get schema
+      const schema = getAttributeSchema(model.rawAttributes[attName]);
+
+      deepEqual(schema, expected);
+    });
+  }
+
+  _testType('ARRAY', DataTypes.STRING, {type: 'array', items: {type: 'string'}});
+  _testType('ARRAY', DataTypes.INTEGER, {type: 'array', items: {type: 'integer', format: 'int32'}});
+  _testType('BIGINT', {type: 'integer', format: 'int64'});
+  _testType('BLOB', {type: 'string', contentEncoding: 'base64'});
+  _testType('BOOLEAN', {type: 'boolean'});
+  _testType('CHAR', {type: 'string'});
+  _testType('CIDR', {type: 'string'});
+  _testType('CITEXT', {type: 'string'});
+  _testType('DATE', {type: 'string', format: 'date-time'});
+  _testType('DATEONLY', {type: 'string', format: 'date'});
+  _testType('DECIMAL', {type: 'number'});
+  _testType('DOUBLE', {type: 'number', format: 'double'});
+  _testType('ENUM', 'abc', 123, {type: 'string', enum: ['abc', 123]});
+  _testType('FLOAT', {type: 'number', format: 'float'});
+  _testType('INET', {type: [{type: 'string', format: 'ipv4'}, {type: 'string', format: 'ipv6'}]});
+  _testType('INTEGER', {type: 'integer', format: 'int32'});
+  _testType('JSON', DataTypes.JSON(DataTypes.ARRAY), {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('JSON', {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('JSONB', {type: ['object', 'array', 'boolean', 'number', 'string']});
+  _testType('MACADDR', {type: 'string'});
+  _testType('MEDIUMINT', {type: 'integer'});
+  _testType('NUMBER', {type: 'number'});
+  _testType('REAL', {type: 'number'});
+  _testType('SMALLINT', {type: 'integer'});
+  _testType('STRING', {type: 'string'});
+  _testType('STRING', 100, {type: 'string', maxLength: 100});
+  _testType('STRING', 40, {type: 'string', maxLength: 40});
+  _testType('TEXT', 'long', {type: 'string', maxLength: 4294967295});
+  _testType('TEXT', 'medium', {type: 'string', maxLength: 16777215});
+  _testType('TEXT', 'tiny', {type: 'string', maxLength: 255});
+});
+
+describe(`getModelSchema()`, () => {
+  const OPTIONS = {exclude: ['createdAt', 'updatedAt', 'id']};
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+
+  it('empty model', () => {
+    const model = sequelize.define('_model', {});
+
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {}
+    });
   });
 
-  describe('definition', () => {
-
-    it('should build definition for empty model', () => {
-
-      let Empty = sequelize.define('empty', {});
-
-      let def = definition(Empty);
-
-      expect(def.type).to.be.equal('object');
-      expect(def.properties).to.be.not.null;
-      expect(def.properties.id).to.be.not.null;
+  it('basic model', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
     });
 
-    it('should build definition for simple model', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        description: Sequelize.TEXT
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.title.type).to.be.equal('string');
-      expect(def.properties.description).to.exist;
-      expect(def.properties.description.type).to.be.equal('string');
-
-    });
-
-    it('should build definition for simple model excluding private columns', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        exclude: ['password']
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.not.exist;
-
-    });
-
-    it('should build definition for simple model only for defined columns', () => {
-
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          type: Sequelize.STRING
+    deepEqual(
+      getModelSchema(model, OPTIONS),
+      {
+        type: 'object',
+        properties:
+        {
+          s1: {type: ['string', 'null']},
         },
-        secret: Sequelize.INTEGER
-      });
-
-      let def = definition(Simple, {
-        attributes: ['title', 'password'],
-        exclude: ['password']
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.not.exist;
-      expect(def.properties.secret).to.not.exist;
-
-    });
-
-    it('should add required for non-null columns', () => {
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: false,
-          type: Sequelize.STRING
-        },
-        secret: Sequelize.INTEGER
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.password).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).to.not.contain('title');
-      expect(def.required).to.contain('password');
-      expect(def.required).to.not.contain('secret');
-      expect(def.properties.secret).to.exist;
-    });
-
-    it('should add null type if option allowNull turned on', () => {
-       let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: true,
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        allowNull: true
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).not.to.contain('title');
-      expect(def.required).not.to.contain('password');
-      expect(def.properties.password.type).to.eql(['string', 'null'])
-      expect(def.properties.title.type).to.eql('string')
-    })
-
-    it('should add to required if option allowNull and alwaysRequired turned on', () => {
-       let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        password: {
-          allowNull: true,
-          type: Sequelize.STRING
-        }
-      });
-
-      let def = definition(Simple, {
-        allowNull: true,
-        alwaysRequired: true
-      });
-
-      expect(def.properties.title).to.exist;
-      expect(def.required).to.be.an('array');
-      expect(def.required).to.contain('id');
-      expect(def.required).to.contain('createdAt');
-      expect(def.required).to.contain('updatedAt');
-      expect(def.required).to.contain('title');
-      expect(def.required).to.contain('password');
-      expect(def.properties.password.type).to.eql(['string', 'null'])
-      expect(def.properties.title.type).to.eql('string')
-    })
-
-    it('should specify string length', () => {
-      let Simple = sequelize.define('simple', {
-        title: Sequelize.STRING,
-        tinyTitle: Sequelize.TEXT('tiny'),
-        mediumTitle: Sequelize.TEXT('medium'),
-        longTitle: Sequelize.TEXT('long'),
-        password: {
-          type: Sequelize.STRING(100)
-        },
-        secret: Sequelize.STRING(40)
-      });
-
-      let def = definition(Simple);
-
-      expect(def.properties.title).to.exist;
-      expect(def.properties.title.maxLength).to.equal(255);
-      expect(def.properties.tinyTitle).to.exist;
-      expect(def.properties.tinyTitle.maxLength).to.equal(255);
-      expect(def.properties.mediumTitle).to.exist;
-      expect(def.properties.mediumTitle.maxLength).to.equal(16777215);
-      expect(def.properties.longTitle).to.exist;
-      expect(def.properties.longTitle.maxLength).to.equal(4294967295);
-      expect(def.properties.password).to.exist;
-      expect(def.properties.password.maxLength).to.equal(100);
-      expect(def.properties.secret).to.exist;
-      expect(def.properties.secret.maxLength).to.equal(40);
-    });
-
+      }
+    );
   });
 
+  it('allowNull:true => allows null', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: {allowNull: true, type: DataTypes.STRING},
+    });
 
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: ['string', 'null']},
+      },
+    });
+  });
 
+  it('allowNull:false => omits null, requires property', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: {allowNull: false, type: DataTypes.STRING},
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(getModelSchema(model, OPTIONS), {
+      type: 'object',
+      properties: {
+        s1: {type: ['string', 'null']},
+        s2: {type: 'string'},
+        s3: {type: ['string', 'null']},
+      },
+      required: ['s2'],
+    });
+  });
+
+  it('options.attributes', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(
+      getModelSchema(model, {attributes: ['s1', 's2']}),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']},
+          s2: {type: ['string', 'null']},
+        },
+      }
+    );
+  });
+
+  it('options.exclude', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+    });
+
+    deepEqual(
+      getModelSchema(model, {exclude: [...OPTIONS.exclude, 's2']}),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']},
+        },
+      }
+    );
+  });
+
+  it('options.attributes <=> options.exclude interaction', () => {
+    const model = sequelize.define('_model', {
+      s1: DataTypes.STRING,
+      s2: DataTypes.STRING,
+      s3: DataTypes.STRING
+    });
+
+    deepEqual(
+      getModelSchema(model, {
+        attributes: ['s1', 's2'],
+        exclude: ['s2']
+      }),
+      {
+        type: 'object',
+        properties: {
+          s1: {type: ['string', 'null']}
+        },
+      }
+    );
+  });
+});
+
+describe(`getSequelizeSchema`, () => {
+  const OPTIONS = {exclude: ['createdAt', 'updatedAt']};
+  const sequelize = new Sequelize('', '', '', {dialect: 'sqlite'});
+
+  it('hasOne', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.hasOne(Bar);
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bar: {$ref: '#/definitions/Bar'}
+          },
+          required: ['id'],
+        },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
+    });
+  });
+
+  it('belongsTo', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.belongsTo(Bar);
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bar: {$ref: '#/definitions/Bar'}
+          },
+          required: ['id'],
+        },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
+    });
+  });
+
+  it('hasMany', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.hasMany(Bar);
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
+          },
+          required: ['id'],
+        },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
+    });
+  });
+
+  it('belongsToMany', () => {
+    const Foo = sequelize.define('Foo', {});
+    const Bar = sequelize.define('Bar', {});
+
+    Foo.belongsToMany(Bar, {through: 'join_table'});
+
+    deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
+          },
+          required: ['id'],
+        },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        },
+
+        // This is an artifact of having to declare a `through` table, above,
+        // for the belongsToMany association
+        join_table: {type: 'object', properties: {}}, // eslint-disable-line camelcase
+      },
+    });
+  });
 });

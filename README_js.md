@@ -1,6 +1,6 @@
-<!--
-  -- This file is auto-generated from README_js.md. Changes should be made there.
-  -->
+```javascript --hide --run
+runmd.onRequire = path => path == 'sequelize-json-schema' ? '.' : path;
+```
 
 # sequelize-json-schema
 
@@ -39,7 +39,7 @@ if needed using `schema.required.push(...Object.keys(schema.properties))`.
 
 Note: Examples below assume the following [fairly standard] setup code for
 Sequelize:
-```javascript
+```javascript --run main
 // Import this module
 const sjs = require('sequelize-json-schema');
 
@@ -49,7 +49,6 @@ const {DataTypes} = Sequelize;
 
 // Create a sequelize instance
 const sequelize = new Sequelize('database', 'username', 'password', {dialect: 'sqlite'});
-
 ```
 
 ### getSequelizeSchema(sequelize[, options])
@@ -65,50 +64,22 @@ const sequelize = new Sequelize('database', 'username', 'password', {dialect: 's
 
 #### Example
 Schema for simple one-model schema:
-```javascript
+```javascript --run main
 const Person = sequelize.define('Person', {name: DataTypes.STRING});
 
 console.log(sjs.getSequelizeSchema(sequelize));
-
-⇒ {
-⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
-⇒   type: 'object',
-⇒   definitions: {
-⇒     Person: {
-⇒       type: 'object',
-⇒       properties: {
-⇒         id: { type: 'integer', format: 'int32' },
-⇒         name: { type: [ 'string', 'null' ] },
-⇒         createdAt: { type: 'string', format: 'date-time' },
-⇒         updatedAt: { type: 'string', format: 'date-time' }
-⇒       },
-⇒       required: [ 'id', 'createdAt', 'updatedAt' ]
-⇒     }
-⇒   }
-⇒ }
 ```
 
 ... continuing on, use `options` to exclude a few properties:
-```javascript
+```javascript --run main
 const options = {exclude: ['id', 'createdAt', 'updatedAt']};
 
 console.log(sjs.getSequelizeSchema(sequelize, options));
-
-⇒ {
-⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
-⇒   type: 'object',
-⇒   definitions: {
-⇒     Person: {
-⇒       type: 'object',
-⇒       properties: { name: { type: [ 'string', 'null' ] } }
-⇒     }
-⇒   }
-⇒ }
 ```
 
 ... continuing on, add another model and some associations:
 
-```javascript
+```javascript --run main
 const Address = sequelize.define('Address', {
   street: DataTypes.STRING('tiny'),
   city: DataTypes.STRING,
@@ -120,35 +91,11 @@ Person.hasOne(Address);
 Address.hasMany(Person);
 
 console.log(sjs.getSequelizeSchema(sequelize, options));
-
-⇒ {
-⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
-⇒   type: 'object',
-⇒   definitions: {
-⇒     Person: {
-⇒       type: 'object',
-⇒       properties: {
-⇒         name: { type: [ 'string', 'null' ] },
-⇒         Address: { '$ref': '#/definitions/Address' }
-⇒       }
-⇒     },
-⇒     Address: {
-⇒       type: 'object',
-⇒       properties: {
-⇒         street: { type: [ 'string', 'null' ], maxLength: 255 },
-⇒         city: { type: [ 'string', 'null' ] },
-⇒         state: { type: [ 'string', 'null' ], maxLength: 2 },
-⇒         zipcode: { type: [ 'number', 'null' ] },
-⇒         People: { type: 'array', items: { '$ref': '#/definitions/Person' } }
-⇒       }
-⇒     }
-⇒   }
-⇒ }
 ```
 
 ... continuing (customizing with `options` and `modelOptions`):
 
-```javascript
+```javascript --run main
 console.log(sjs.getSequelizeSchema(sequelize, {
   exclude: ['createdAt', 'updatedAt'],
   modelOptions: {
@@ -156,25 +103,6 @@ console.log(sjs.getSequelizeSchema(sequelize, {
     Address: {attributes: ['id']},
   }
 }));
-
-⇒ {
-⇒   '$schema': 'http://json-schema.org/draft-07/schema#',
-⇒   type: 'object',
-⇒   definitions: {
-⇒     Person: {
-⇒       type: 'object',
-⇒       properties: {
-⇒         name: { type: [ 'string', 'null' ] },
-⇒         Address: { '$ref': '#/definitions/Address' }
-⇒       }
-⇒     },
-⇒     Address: {
-⇒       type: 'object',
-⇒       properties: { id: { type: 'integer', format: 'int32' } },
-⇒       required: [ 'id' ]
-⇒     }
-⇒   }
-⇒ }
 ```
 
 ### getModelSchema(model[, options])
@@ -192,38 +120,14 @@ console.log(sjs.getSequelizeSchema(sequelize, {
 
 ... continuing `getSequelizeSchema()` example, above:
 
-```javascript
+```javascript --run main
 console.log(sjs.getModelSchema(Person));
-
-⇒ {
-⇒   type: 'object',
-⇒   properties: {
-⇒     id: { type: 'integer', format: 'int32' },
-⇒     name: { type: [ 'string', 'null' ] },
-⇒     createdAt: { type: 'string', format: 'date-time' },
-⇒     updatedAt: { type: 'string', format: 'date-time' },
-⇒     Address: { '$ref': '#/definitions/Address' }
-⇒   },
-⇒   required: [ 'id', 'createdAt', 'updatedAt' ]
-⇒ }
 ```
 
 ... continuing (useRefs = false to treat associations as plain attributes):
 
-```javascript
+```javascript --run main
 console.log(sjs.getModelSchema(Person, {useRefs: false}));
-
-⇒ {
-⇒   type: 'object',
-⇒   properties: {
-⇒     id: { type: 'integer', format: 'int32' },
-⇒     name: { type: [ 'string', 'null' ] },
-⇒     createdAt: { type: 'string', format: 'date-time' },
-⇒     updatedAt: { type: 'string', format: 'date-time' },
-⇒     AddressId: { type: [ 'integer', 'null' ], format: 'int32' }
-⇒   },
-⇒   required: [ 'id', 'createdAt', 'updatedAt' ]
-⇒ }
 ```
 
 ### getAttributeSchema(attribute)
@@ -237,12 +141,7 @@ console.log(sjs.getModelSchema(Person, {useRefs: false}));
 
 ... continuing `getModelSchema()` example, above:
 
-```javascript
+```javascript --run main
 console.log(sjs.getAttributeSchema(Person.rawAttributes.name));
-
-⇒ { type: [ 'string', 'null' ] }
 ```
 
-
-----
-Markdown generated from [README_js.md](README_js.md) by [![RunMD Logo](http://i.imgur.com/h0FVyzU.png)](https://github.com/broofa/runmd)
