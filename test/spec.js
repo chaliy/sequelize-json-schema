@@ -208,25 +208,25 @@ describe(`getSequelizeSchema`, () => {
 
     Foo.hasOne(Bar);
     deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        type: 'object',
-        definitions: {
-          Foo: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'},
-              Bar: {'$ref': '#/definitions/Bar'}
-            },
-            required: ['id'],
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bar: {$ref: '#/definitions/Bar'}
           },
-          Bar: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'}
-            },
-            required: ['id'],
-          }
+          required: ['id'],
         },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
     });
   });
 
@@ -237,25 +237,25 @@ describe(`getSequelizeSchema`, () => {
     Foo.belongsTo(Bar);
 
     deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        type: 'object',
-        definitions: {
-          Foo: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'},
-              Bar: {'$ref': '#/definitions/Bar'}
-            },
-            required: ['id'],
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bar: {$ref: '#/definitions/Bar'}
           },
-          Bar: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'}
-            },
-            required: ['id'],
-          }
+          required: ['id'],
         },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
     });
   });
 
@@ -266,25 +266,25 @@ describe(`getSequelizeSchema`, () => {
     Foo.hasMany(Bar);
 
     deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        type: 'object',
-        definitions: {
-          Foo: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'},
-              Bars: {type: 'array', items: {'$ref': '#/definitions/Bar'}}
-            },
-            required: ['id'],
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
           },
-          Bar: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'}
-            },
-            required: ['id'],
-          }
+          required: ['id'],
         },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        }
+      },
     });
   });
 
@@ -295,29 +295,29 @@ describe(`getSequelizeSchema`, () => {
     Foo.belongsToMany(Bar, {through: 'join_table'});
 
     deepEqual(getSequelizeSchema(sequelize, OPTIONS), {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        type: 'object',
-        definitions: {
-          Foo: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'},
-              Bars: {type: 'array', items: {'$ref': '#/definitions/Bar'}}
-            },
-            required: ['id'],
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      definitions: {
+        Foo: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'},
+            Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
           },
-          Bar: {
-            type: 'object',
-            properties: {
-              id: {format: 'int32', type: 'integer'}
-            },
-            required: ['id'],
-          },
-
-          // This is an artifact of having to declare a `through` table, above,
-          // for the belongsToMany association
-          join_table: {type: 'object', properties: {}},
+          required: ['id'],
         },
+        Bar: {
+          type: 'object',
+          properties: {
+            id: {format: 'int32', type: 'integer'}
+          },
+          required: ['id'],
+        },
+
+        // This is an artifact of having to declare a `through` table, above,
+        // for the belongsToMany association
+        join_table: {type: 'object', properties: {}}, // eslint-disable-line camelcase
+      },
     });
   });
 });

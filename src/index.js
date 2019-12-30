@@ -24,16 +24,16 @@ function allowNullType(prop, allowNull = true) {
 
   const hasNull = Array.isArray(prop.type) ?
     prop.type.includes('null') :
-    prop.type == 'null';
+    prop.type === 'null';
 
-  if (hasNull != allowNull) {
+  if (hasNull !== allowNull) {
     if (allowNull) {
       // Convert to array
       if (!Array.isArray(prop.type)) prop.type = [prop.type];
       prop.type.push('null');
     } else {
-      prop.type = prop.type.filter(t => t != 'null');
-      if (prop.type.length == 1) prop.type = prop.type[0];
+      prop.type = prop.type.filter(t => t !== 'null');
+      if (prop.type.length === 1) prop.type = prop.type[0];
     }
   }
 
@@ -139,7 +139,7 @@ function getAttributeSchema(att) {
       schema = getAttributeSchema({...att, type: att.type && att.type.returnType});
       break;
     }
-  };
+  }
 
   // Use ANY for anything that's not recognized.  'Not entirely sure
   // this is the right thing to do.  File an issue if you think it should behave
@@ -164,8 +164,6 @@ function getAttributeSchema(att) {
 function getModelSchema(model, options = {}) {
   const schema = {...OBJECT, properties: {}, required: []};
   const {useRefs = true} = options;
-
-  const {NODE_ENV} = process.env;
 
   // Emit warnings about legacy options
   if (options.private) {
@@ -196,8 +194,8 @@ function getModelSchema(model, options = {}) {
 
   // Define associations(?)
   if (useRefs !== false) {
-    for (const [assName, ass] of Object.entries(model.associations)) {
-      const {associationType, target, associationAccessor} = ass;
+    for (const [, assoc] of Object.entries(model.associations)) {
+      const {associationType, target, associationAccessor} = assoc;
 
       if (!_includeAttribute(options, associationAccessor)) continue;
 
@@ -205,18 +203,17 @@ function getModelSchema(model, options = {}) {
       switch (associationType) {
         case 'HasOne':
         case 'BelongsTo':
-          assSchema = {'$ref': `#/definitions/${target.name}`};
+          assSchema = {$ref: `#/definitions/${target.name}`};
           break;
         case 'HasMany':
         case 'BelongsToMany':
           assSchema = {
             type: 'array',
-            items: {'$ref': `#/definitions/${target.name}`}
+            items: {$ref: `#/definitions/${target.name}`}
           };
           break;
         default:
-          debugger;
-          throw Error(`Unrecognized association type: "${assType}"`);
+          throw Error(`Unrecognized association type: "${associationType}"`);
       }
 
       schema.properties[associationAccessor] = assSchema;
@@ -226,16 +223,16 @@ function getModelSchema(model, options = {}) {
   if (!schema.required.length) delete schema.required;
 
   return schema;
-};
+}
 
 function getSequelizeSchema(seq, options = {}) {
   const {modelOptions = {}} = options;
   // Per https://json-schema.org/understanding-json-schema/structuring.htmlk
   const schema = {
-      '$schema': 'http://json-schema.org/draft-07/schema#',
+    $schema: 'http://json-schema.org/draft-07/schema#',
     ...OBJECT,
     definitions: {},
-  }
+  };
 
   // Definitions
   for (const [name, model] of Object.entries(seq.models)) {
@@ -253,4 +250,4 @@ module.exports = {
   getAttributeSchema,
   getModelSchema,
   getSequelizeSchema,
-}
+};
