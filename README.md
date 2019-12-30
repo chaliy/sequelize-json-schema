@@ -37,7 +37,8 @@ if needed using `schema.required.push(...Object.keys(schema.properties))`.
 
 ## API
 
-Note: API examples below assume the following setup code:
+Note: Examples below assume the following [fairly standard] setup code for
+Sequelize:
 ```javascript
 // Import this module
 const sjs = require('sequelize-json-schema');
