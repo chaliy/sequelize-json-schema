@@ -24,7 +24,23 @@
     "type": "git",
     "url": "git+https://github.com/chaliy/sequelize-json-schema.git"
   },
-  "author": "Mike Chaliy <mike@chaliy.name> (https://github.com/chaliy)",
+  "author": {
+    "name": "Robert Kieffer",
+    "email": "robert@broofa.com",
+    "url": "https://www.github.com/broofa"
+  },
+  "contributors": [
+    {
+      "name": "Mike Chaliy",
+      "email": "mike@chaliy.name",
+      "url": "https://github.com/chaliy"
+    },
+    {
+      "name": "Robert Kieffer",
+      "email": "robert@broofa.com",
+      "url": "https://www.github.com/broofa"
+    }
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/chaliy/sequelize-json-schema/issues"
@@ -33,10 +49,9 @@
   "devDependencies": {
     "eslint": "6.1.0",
     "mocha": ">= 6",
+    "runmd": "1.2.1",
     "sequelize": ">= 4",
     "sqlite3": "4.0.9"
   },
-  "dependencies": {
-    "runmd": "1.2.1"
-  }
+  "dependencies": {}
 }
