@@ -48,11 +48,11 @@
   },
   "homepage": "https://github.com/chaliy/sequelize-json-schema#readme",
   "devDependencies": {
-    "eslint": "6.1.0",
-    "mocha": ">= 6",
+    "eslint": "6.8.0",
+    "mocha": "6.2.2",
     "runmd": "1.2.1",
-    "sequelize": ">= 4",
-    "sqlite3": "4.0.9"
+    "sequelize": "5.21.3",
+    "sqlite3": "4.1.1"
   },
   "dependencies": {}
 }
