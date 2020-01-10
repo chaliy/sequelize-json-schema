@@ -78,7 +78,7 @@ console.log(sjs.getSequelizeSchema(sequelize));
 ⇒       type: 'object',
 ⇒       properties: {
 ⇒         id: { type: 'integer', format: 'int32' },
-⇒         name: { type: [ 'string', 'null' ] },
+⇒         name: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒         createdAt: { type: 'string', format: 'date-time' },
 ⇒         updatedAt: { type: 'string', format: 'date-time' }
 ⇒       },
@@ -100,7 +100,7 @@ console.log(sjs.getSequelizeSchema(sequelize, options));
 ⇒   definitions: {
 ⇒     Person: {
 ⇒       type: 'object',
-⇒       properties: { name: { type: [ 'string', 'null' ] } }
+⇒       properties: { name: { type: [ 'string', 'null' ], maxLength: 255 } }
 ⇒     }
 ⇒   }
 ⇒ }
@@ -128,7 +128,7 @@ console.log(sjs.getSequelizeSchema(sequelize, options));
 ⇒     Person: {
 ⇒       type: 'object',
 ⇒       properties: {
-⇒         name: { type: [ 'string', 'null' ] },
+⇒         name: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒         Address: { '$ref': '#/definitions/Address' }
 ⇒       }
 ⇒     },
@@ -136,7 +136,7 @@ console.log(sjs.getSequelizeSchema(sequelize, options));
 ⇒       type: 'object',
 ⇒       properties: {
 ⇒         street: { type: [ 'string', 'null' ], maxLength: 255 },
-⇒         city: { type: [ 'string', 'null' ] },
+⇒         city: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒         state: { type: [ 'string', 'null' ], maxLength: 2 },
 ⇒         zipcode: { type: [ 'number', 'null' ] },
 ⇒         People: { type: 'array', items: { '$ref': '#/definitions/Person' } }
@@ -164,7 +164,7 @@ console.log(sjs.getSequelizeSchema(sequelize, {
 ⇒     Person: {
 ⇒       type: 'object',
 ⇒       properties: {
-⇒         name: { type: [ 'string', 'null' ] },
+⇒         name: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒         Address: { '$ref': '#/definitions/Address' }
 ⇒       }
 ⇒     },
@@ -199,7 +199,7 @@ console.log(sjs.getModelSchema(Person));
 ⇒   type: 'object',
 ⇒   properties: {
 ⇒     id: { type: 'integer', format: 'int32' },
-⇒     name: { type: [ 'string', 'null' ] },
+⇒     name: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒     createdAt: { type: 'string', format: 'date-time' },
 ⇒     updatedAt: { type: 'string', format: 'date-time' },
 ⇒     Address: { '$ref': '#/definitions/Address' }
@@ -217,7 +217,7 @@ console.log(sjs.getModelSchema(Person, {useRefs: false}));
 ⇒   type: 'object',
 ⇒   properties: {
 ⇒     id: { type: 'integer', format: 'int32' },
-⇒     name: { type: [ 'string', 'null' ] },
+⇒     name: { type: [ 'string', 'null' ], maxLength: 255 },
 ⇒     createdAt: { type: 'string', format: 'date-time' },
 ⇒     updatedAt: { type: 'string', format: 'date-time' },
 ⇒     AddressId: { type: [ 'integer', 'null' ], format: 'int32' }
@@ -240,7 +240,7 @@ console.log(sjs.getModelSchema(Person, {useRefs: false}));
 ```javascript
 console.log(sjs.getAttributeSchema(Person.rawAttributes.name));
 
-⇒ { type: [ 'string', 'null' ] }
+⇒ { type: [ 'string', 'null' ], maxLength: 255 }
 ```
 
 
