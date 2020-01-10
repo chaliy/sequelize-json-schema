@@ -245,26 +245,26 @@ describe(`getSequelizeSchema`, () => {
 
     schemaEqual(
       getSequelizeSchema(sequelize, OPTIONS), {
-      $schema: 'http://json-schema.org/draft-07/schema#',
-      type: 'object',
-      definitions: {
-        Foo: {
-          type: 'object',
-          properties: {
-            id: {format: 'int32', type: 'integer'},
-            Bar: {$ref: '#/definitions/Bar'}
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bar: {$ref: '#/definitions/Bar'}
+            },
+            required: ['id'],
           },
-          required: ['id'],
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          }
         },
-        Bar: {
-          type: 'object',
-          properties: {
-            id: {format: 'int32', type: 'integer'}
-          },
-          required: ['id'],
-        }
-      },
-    });
+      });
   });
 
   it('hasMany', () => {
@@ -275,26 +275,26 @@ describe(`getSequelizeSchema`, () => {
 
     schemaEqual(
       getSequelizeSchema(sequelize, OPTIONS), {
-      $schema: 'http://json-schema.org/draft-07/schema#',
-      type: 'object',
-      definitions: {
-        Foo: {
-          type: 'object',
-          properties: {
-            id: {format: 'int32', type: 'integer'},
-            Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        definitions: {
+          Foo: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'},
+              Bars: {type: 'array', items: {$ref: '#/definitions/Bar'}}
+            },
+            required: ['id'],
           },
-          required: ['id'],
+          Bar: {
+            type: 'object',
+            properties: {
+              id: {format: 'int32', type: 'integer'}
+            },
+            required: ['id'],
+          }
         },
-        Bar: {
-          type: 'object',
-          properties: {
-            id: {format: 'int32', type: 'integer'}
-          },
-          required: ['id'],
-        }
-      },
-    });
+      });
   });
 
   it('belongsToMany', () => {
