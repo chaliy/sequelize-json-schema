@@ -40,7 +40,7 @@ describe(`getAttributeSchema()`, () => {
     });
   }
 
-  _testType('ARRAY', DataTypes.STRING, {type: 'array', items: {type: 'string'}});
+  _testType('ARRAY', DataTypes.STRING, {type: 'array', items: {type: 'string', maxLength: 255}});
   _testType('ARRAY', DataTypes.INTEGER, {type: 'array', items: {type: 'integer', format: 'int32'}});
   _testType('BIGINT', {type: 'integer', format: 'int64'});
   _testType('BLOB', {type: 'string', contentEncoding: 'base64'});
@@ -64,14 +64,14 @@ describe(`getAttributeSchema()`, () => {
   _testType('NUMBER', {type: 'number'});
   _testType('REAL', {type: 'number'});
   _testType('SMALLINT', {type: 'integer'});
-  _testType('STRING', {type: 'string'});
+  _testType('STRING', {type: 'string', maxLength: 255});
   _testType('STRING', 100, {type: 'string', maxLength: 100});
   _testType('STRING', 40, {type: 'string', maxLength: 40});
   _testType('TEXT', 'long', {type: 'string', maxLength: 4294967295});
   _testType('TEXT', 'medium', {type: 'string', maxLength: 16777215});
   _testType('TEXT', 'tiny', {type: 'string', maxLength: 255});
-  _testType('VIRTUAL', DataTypes.STRING, {type: 'string'});
-  _testType('VIRTUAL', DataTypes.ARRAY(DataTypes.STRING), {type: 'array', items: {type: 'string'}});
+  _testType('VIRTUAL', DataTypes.STRING, {type: 'string', maxLength: 255});
+  _testType('VIRTUAL', DataTypes.ARRAY(DataTypes.STRING), {type: 'array', items: {type: 'string', maxLength: 255}});
 });
 
 describe(`getModelSchema()`, () => {
@@ -98,7 +98,7 @@ describe(`getModelSchema()`, () => {
         type: 'object',
         properties:
         {
-          s1: {type: ['string', 'null']},
+          s1: {type: ['string', 'null'], maxLength: 255},
         },
       }
     );
@@ -115,8 +115,8 @@ describe(`getModelSchema()`, () => {
       {
         type: 'object',
         properties: {
-          s1: {type: ['string', 'null']},
-          s2: {type: ['string', 'null']},
+          s1: {type: ['string', 'null'], maxLength: 255},
+          s2: {type: ['string', 'null'], maxLength: 255},
         },
       }
     );
@@ -134,9 +134,9 @@ describe(`getModelSchema()`, () => {
       {
         type: 'object',
         properties: {
-          s1: {type: ['string', 'null']},
-          s2: {type: 'string'},
-          s3: {type: ['string', 'null']},
+          s1: {type: ['string', 'null'], maxLength: 255},
+          s2: {type: 'string', maxLength: 255},
+          s3: {type: ['string', 'null'], maxLength: 255},
         },
         required: ['s2'],
       }
@@ -155,8 +155,8 @@ describe(`getModelSchema()`, () => {
       {
         type: 'object',
         properties: {
-          s1: {type: ['string', 'null']},
-          s2: {type: ['string', 'null']},
+          s1: {type: ['string', 'null'], maxLength: 255},
+          s2: {type: ['string', 'null'], maxLength: 255},
         }
       }
     );
@@ -173,7 +173,7 @@ describe(`getModelSchema()`, () => {
       {
         type: 'object',
         properties: {
-          s1: {type: ['string', 'null']},
+          s1: {type: ['string', 'null'], maxLength: 255},
         }
       }
     );
@@ -194,7 +194,7 @@ describe(`getModelSchema()`, () => {
       {
         type: 'object',
         properties: {
-          s1: {type: ['string', 'null']}
+          s1: {type: ['string', 'null'], maxLength: 255}
         },
       }
     );

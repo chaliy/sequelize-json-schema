@@ -4,6 +4,7 @@
 const ARRAY = {type: 'array'};
 const BOOLEAN = {type: 'boolean'};
 const INTEGER = {type: 'integer'};
+const NULL = {type: 'null'};
 const NUMBER = {type: 'number'};
 const OBJECT = {type: 'object'};
 const STRING = {type: 'string'};
@@ -16,39 +17,55 @@ const ANY = {};
 
 const STRING_LENGTHS = {tiny: 255, medium: 16777215, long: 4294967295};
 
-/**
- * Add/remove `null` type from an property schema.  This will switch `type`
- * between an array and a single value, depending on the # of types.
- *
- * @param {Object} prop property schema
- * @param {Boolean} allowNull true = add null type, false = remove null type
- */
-function allowNullType(prop, allowNull = true) {
-  // Sanity check that this is a property schema
-  if (!prop.type) throw Error('Attribute `type` not defined');
-
-  const hasNull = Array.isArray(prop.type) ?
-    prop.type.includes('null') :
-    prop.type === 'null';
-
-  if (hasNull !== allowNull) {
-    if (allowNull) {
-      // Convert to array
-      if (!Array.isArray(prop.type)) prop.type = [prop.type];
-      prop.type.push('null');
-    } else {
-      prop.type = prop.type.filter(t => t !== 'null');
-      if (prop.type.length === 1) prop.type = prop.type[0];
-    }
-  }
-
-  return prop;
+// Naive utility for detecting empty objects
+function _isEmpty(obj) {
+  for (const k in obj) return false;
+  return true;
 }
 
 function _includeAttribute(opts, name) {
   const include = (!opts.exclude || !opts.exclude.includes(name)) &&
     (!opts.attributes || opts.attributes.length <= 0 || opts.attributes.includes(name));
   return include;
+}
+
+// Naive utility for adding a type to schema.type
+function _addType(schema, type = 'null') {
+  // Empty schemas always validate
+  if (_isEmpty(schema)) return schema;
+
+  if (!schema.type) throw Error('schema.type not defined');
+
+  // Gather types and add type
+  const types = new Set(Array.isArray(schema.type) ? schema.type : [schema.type]);
+  types.add(type);
+
+  // Update type field
+  schema.type = types.size > 1 ? [...types] : [...types][0];
+
+  return schema;
+}
+
+// Naive utility for removing a type to schema.type
+function _removeType(schema, type = 'null') {
+  if (!schema.type) throw Error('schema.type not defined');
+
+  // Gather types and remove type
+  const types = new Set(Array.isArray(schema.type) ? schema.type : [schema.type]);
+  types.delete(type);
+
+  // Note: Technically an empty type field is permissable, but the semantics of
+  // that are complicated.  Is schema empty (always validates)?  Is it using one
+  // of the combining properties (anyOf, oneOf, allOf, not)?  Getting this wrong
+  // (e.g. producing an empty schema that always validates) could lead to
+  // security vulenerabilities.  So we just throw here to force callers to
+  // figure this out.
+  if (types.size <= 0) throw Error('schema.type must have at least one type');
+
+  // Update type field
+  schema.type = types.size > 1 ? [...types] : [...types][0];
+
+  return schema;
 }
 
 /**
@@ -74,6 +91,7 @@ function getAttributeSchema(att) {
       break;
 
     case 'VIRTUAL': {
+      if (!att.type.returnType) throw Error(`No type defined for VIRTUAL field "${att.field}"`);
       return getAttributeSchema({...att, type: att.type.returnType});
     }
   }
@@ -123,11 +141,12 @@ function getAttributeSchema(att) {
 
     case 'STRING': {
       schema = {...STRING};
-      let length = att.type.options && att.type.options.length;
 
-      // Resolve aliases
+      // Include max char length if available
+      let length = att.type._length || (att.type.options && att.type.options.length);
       length = STRING_LENGTHS[length] || length;
       if (length) schema.maxLength = length;
+
       break;
     }
 
@@ -141,10 +160,10 @@ function getAttributeSchema(att) {
   // Use ANY for anything that's not recognized.  'Not entirely sure
   // this is the right thing to do.  File an issue if you think it should behave
   // differently.
-  if (!schema) schema = {...ANY};
+  if (!schema) schema = {type: {...ANY}};
 
-  // Add 'null' type?
-  if (att.allowNull !== false) allowNullType(schema, att.allowNull);
+  // Add null? (Sequelize allowNull defaults to true)
+  if (att.allowNull !== false) schema = _addType(schema, 'null');
 
   return schema;
 }
@@ -170,7 +189,7 @@ function getModelSchema(model, options = {}) {
     throw Error('`alwaysRequired` option is no longer supported (Add required properties `schema.required[]` in the returned schema');
   }
   if (options.allowNull) {
-    throw Error('`allowNull` option is no longer supported (Use sjs.allowNullType(property[, allowNull]) to add/remove null types in the returned schema)');
+    throw Error('`allowNull` option is no longer supported');
   }
 
   // Define propertiesk
