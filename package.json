@@ -1,6 +1,6 @@
 {
   "name": "sequelize-json-schema",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Use your Sequelize models in JSON Schemas or Swagger",
   "keywords": [
     "sequelize",
