@@ -1,13 +1,18 @@
-// Common types.  These should never be exposed directly but, rather, get cloned
+// Common types.  These should never be exposed directly but, instead, be cloned
 // before being returned.  This avoids cross-contamination if a user modifies
 // the their schema.
-const ANY = {type: ['object', 'array', 'boolean', 'number', 'string']};
 const ARRAY = {type: 'array'};
 const BOOLEAN = {type: 'boolean'};
 const INTEGER = {type: 'integer'};
 const NUMBER = {type: 'number'};
 const OBJECT = {type: 'object'};
 const STRING = {type: 'string'};
+
+// Note: per sec. 4.3.2 of spec, the "any" type can be `true` rather than an empty
+// object.  While it makes the intent more explicit, having schemas always be
+// Objects makes life easier for users of this module if/when they want to
+// inspect or transform the generated schemas
+const ANY = {};
 
 const STRING_LENGTHS = {tiny: 255, medium: 16777215, long: 4294967295};
 
@@ -103,11 +108,11 @@ function getAttributeSchema(att) {
     // GEOGRAPHY - needs definition
     // GEOMETRY - needs definition
     // HSTORE - needs definition
-    case 'INET': {schema = {type: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]}; break; }
+    case 'INET': {schema = {anyOf: [{...STRING, format: 'ipv4'}, {...STRING, format: 'ipv6'}]}; break; }
 
     case 'INTEGER': { schema = {...INTEGER, format: 'int32'}; break; }
-    case 'JSON': { schema = {...ANY, type: [...ANY.type]}; break; }
-    case 'JSONB': { schema = {...ANY, type: [...ANY.type]}; break; }
+    case 'JSON': { schema = {...ANY}; break; }
+    case 'JSONB': { schema = {...ANY}; break; }
     case 'MACADDR': { schema = {...STRING}; break; }
     case 'MEDIUMINT': { schema = {...INTEGER}; break; }
     // NOW: null,
@@ -136,7 +141,7 @@ function getAttributeSchema(att) {
   // Use ANY for anything that's not recognized.  'Not entirely sure
   // this is the right thing to do.  File an issue if you think it should behave
   // differently.
-  if (!schema) schema = {...ANY, type: [...ANY.type]};
+  if (!schema) schema = {...ANY};
 
   // Add 'null' type?
   if (att.allowNull !== false) allowNullType(schema, att.allowNull);
