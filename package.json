@@ -48,12 +48,21 @@
   },
   "homepage": "https://github.com/chaliy/sequelize-json-schema#readme",
   "devDependencies": {
-    "ajv": "6.10.2",
-    "eslint": "6.8.0",
-    "mocha": "6.2.2",
+    "@eslint/js": "10.0.1",
+    "ajv": "6.15.0",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "mocha": "12.0.3",
     "runmd": "1.2.1",
     "sequelize": "6.37.8",
-    "sqlite3": "4.1.1"
+    "sqlite3": "6.0.1"
   },
-  "dependencies": {}
+  "overrides": {
+    "runmd": {
+      "minimist": "1.2.8"
+    },
+    "sequelize": {
+      "uuid": "11.1.1"
+    }
+  }
 }
